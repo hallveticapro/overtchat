@@ -194,7 +194,7 @@ function EmptyState({ configured }: { configured: boolean }) {
       <div className="mb-5 flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
         <Sparkles className="size-5" />
       </div>
-      <h1 className="font-heading text-3xl font-semibold tracking-tight">
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">
         What can I help with?
       </h1>
       <p className="mt-3 max-w-sm text-sm text-muted-foreground">
@@ -249,7 +249,7 @@ function MessageBubble({
             return (
               <Streamdown
                 key={i}
-                className="space-y-3"
+                className="font-serif space-y-3 text-[15px] leading-relaxed"
                 plugins={PLUGINS}
                 isAnimating={streaming}
               >
