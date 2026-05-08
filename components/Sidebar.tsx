@@ -1,14 +1,14 @@
 "use client";
 
-import { Plus, Settings } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AccountMenu } from "@/components/AccountMenu";
 
 interface Props {
-  onOpenConfig: () => void;
   onNewChat: () => void;
 }
 
-export function Sidebar({ onOpenConfig, onNewChat }: Props) {
+export function Sidebar({ onNewChat }: Props) {
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-12 items-center justify-between px-3">
@@ -30,16 +30,8 @@ export function Sidebar({ onOpenConfig, onNewChat }: Props) {
         </p>
       </div>
 
-      <div className="p-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          onClick={onOpenConfig}
-        >
-          <Settings />
-          <span>API settings</span>
-        </Button>
+      <div className="border-t border-sidebar-border p-2">
+        <AccountMenu />
       </div>
     </aside>
   );

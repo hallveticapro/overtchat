@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
@@ -7,12 +9,13 @@ import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { cjk } from "@streamdown/cjk";
-import { ArrowUp, ChevronDown, Globe, Sparkles, Square } from "lucide-react";
+import { ArrowUp, Globe, Sparkles, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { type ApiConfig } from "@/lib/config";
+import { ModelPicker } from "@/components/ModelPicker";
 import {
   ToolCall,
   type FetchUrlPart,
@@ -23,12 +26,13 @@ const SEARCH_STORAGE_KEY = "overtchat_search_enabled";
 
 interface Props {
   config: ApiConfig;
-  onOpenConfig: () => void;
+  onConfigChange: (config: ApiConfig) => void;
 }
 
 const PLUGINS = { code, math, cjk };
 
-export function ChatArea({ config, onOpenConfig }: Props) {
+export function ChatArea({ config, onConfigChange }: Props) {
+  const router = useRouter();
   const configured = Boolean(config.baseUrl && config.model);
   const configRef = useRef(config);
   configRef.current = config;
@@ -83,7 +87,7 @@ export function ChatArea({ config, onOpenConfig }: Props) {
     const text = input.trim();
     if (!text || streaming) return;
     if (!configured) {
-      onOpenConfig();
+      router.push("/settings");
       return;
     }
     sendMessage({ text });
@@ -100,22 +104,15 @@ export function ChatArea({ config, onOpenConfig }: Props) {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <header className="flex h-12 shrink-0 items-center border-b px-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onOpenConfig}
-          className="min-w-0 max-w-[60%] gap-1.5"
-        >
-          <span className="truncate">
-            {config.model || "No model configured"}
-          </span>
-          <ChevronDown className="shrink-0 text-muted-foreground" />
-        </Button>
+        <ModelPicker
+          config={config}
+          onChange={onConfigChange}
+        />
       </header>
 
       <ScrollArea className="flex-1">
         {messages.length === 0 ? (
-          <EmptyState configured={configured} onOpenConfig={onOpenConfig} />
+          <EmptyState configured={configured} />
         ) : (
           <div className="mx-auto w-full max-w-3xl space-y-6 px-4 pt-10 pb-8">
             {messages.map((m, i) => (
@@ -191,13 +188,7 @@ export function ChatArea({ config, onOpenConfig }: Props) {
   );
 }
 
-function EmptyState({
-  configured,
-  onOpenConfig,
-}: {
-  configured: boolean;
-  onOpenConfig: () => void;
-}) {
+function EmptyState({ configured }: { configured: boolean }) {
   return (
     <div className="flex h-full min-h-[70vh] flex-col items-center justify-center px-4 text-center">
       <div className="mb-5 flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -212,7 +203,7 @@ function EmptyState({
           : "Point overtchat at any OpenAI-compatible endpoint to begin."}
       </p>
       {!configured && (
-        <Button variant="outline" className="mt-5" onClick={onOpenConfig}>
+        <Button render={<Link href="/settings" />} variant="outline" className="mt-5">
           Configure endpoint
         </Button>
       )}

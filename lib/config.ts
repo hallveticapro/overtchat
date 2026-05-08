@@ -19,3 +19,12 @@ export function loadConfig(): ApiConfig {
 export function saveConfig(config: ApiConfig): void {
   localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
 }
+
+export async function fetchModels(config: Pick<ApiConfig, "baseUrl" | "apiKey">): Promise<string[]> {
+  const res = await fetch(config.baseUrl.replace(/\/$/, "") + "/models", {
+    headers: config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {},
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = (await res.json()) as { data?: Array<{ id: string }> };
+  return (json.data ?? []).map((m) => m.id).sort();
+}
