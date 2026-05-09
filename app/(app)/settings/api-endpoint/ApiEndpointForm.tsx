@@ -54,7 +54,13 @@ export function ApiEndpointForm() {
   const canSave = Boolean(draft.baseUrl && draft.model);
 
   return (
-    <div className="max-w-xl space-y-6">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (canSave) handleSave();
+      }}
+      className="max-w-xl space-y-6"
+    >
       <header>
         <h1 className="font-heading text-xl font-semibold tracking-tight">API endpoint</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -81,6 +87,7 @@ export function ApiEndpointForm() {
           <Input
             id="apiKey"
             type="password"
+            autoComplete="new-password"
             placeholder="sk-…"
             value={draft.apiKey}
             onChange={(e) => setDraft((c) => ({ ...c, apiKey: e.target.value }))}
@@ -89,6 +96,7 @@ export function ApiEndpointForm() {
 
         <div className="flex items-center gap-3">
           <Button
+            type="button"
             variant="outline"
             size="sm"
             disabled={!draft.baseUrl || testStatus === "loading"}
@@ -129,13 +137,13 @@ export function ApiEndpointForm() {
       </div>
 
       <div className="flex items-center gap-3 border-t pt-4">
-        <Button disabled={!canSave} onClick={handleSave}>
+        <Button type="submit" disabled={!canSave}>
           Save
         </Button>
         {savedAt > 0 && (
           <span className="text-sm text-muted-foreground">Saved</span>
         )}
       </div>
-    </div>
+    </form>
   );
 }

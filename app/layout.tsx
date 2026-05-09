@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import { AppShell } from "@/components/AppShell";
 import { THEME_STORAGE_KEY } from "@/lib/theme";
 
 const themeInitScript = `(function(){try{var s=localStorage.getItem(${JSON.stringify(
@@ -48,9 +47,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="h-full">
-        <AppShell>{children}</AppShell>
-      </body>
+      <body className="h-full">{children}</body>
     </html>
   );
 }

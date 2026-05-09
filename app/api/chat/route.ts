@@ -8,6 +8,7 @@ import {
 } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { webTools } from "@/lib/tools";
+import { auth } from "@/lib/auth/server";
 
 export const maxDuration = 300;
 
@@ -20,6 +21,9 @@ interface Body {
 }
 
 export async function POST(req: Request) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) return new Response("Unauthorized", { status: 401 });
+
   const { messages, baseUrl, apiKey, model, searchEnabled } =
     (await req.json()) as Body;
 
