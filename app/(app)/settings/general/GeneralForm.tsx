@@ -1,17 +1,26 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { type Theme, useTheme } from "@/lib/theme";
 
-const OPTIONS: Array<{ value: Theme; label: string; icon: typeof Sun }> = [
+type ThemeValue = "light" | "dark" | "system";
+
+const OPTIONS: Array<{ value: ThemeValue; label: string; icon: typeof Sun }> = [
   { value: "light", label: "Light", icon: Sun },
   { value: "dark", label: "Dark", icon: Moon },
   { value: "system", label: "System", icon: Monitor },
 ];
 
+const subscribe = () => () => {};
+const getSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export function GeneralForm() {
-  const [theme, setTheme] = useTheme();
+  const { theme, setTheme } = useTheme();
+  const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const current = (mounted ? theme : undefined) as ThemeValue | undefined;
 
   return (
     <div className="max-w-xl space-y-8">
@@ -35,7 +44,7 @@ export function GeneralForm() {
           className="grid grid-cols-3 gap-2"
         >
           {OPTIONS.map(({ value, label, icon: Icon }) => {
-            const active = theme === value;
+            const active = current === value;
             return (
               <button
                 key={value}
