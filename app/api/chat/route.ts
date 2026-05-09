@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     model: wrapped,
     messages: await convertToModelMessages(messages),
     tools: searchEnabled ? webTools : undefined,
-    stopWhen: searchEnabled ? stepCountIs(5) : undefined,
+    stopWhen: searchEnabled ? stepCountIs(10) : undefined,
     abortSignal: req.signal,
   });
 

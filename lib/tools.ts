@@ -5,9 +5,14 @@ import { searxngSearch, fetchReadable } from "./web";
 export const webTools = {
   web_search: tool({
     description:
-      "Search the web via SearXNG. Returns a ranked list of {link, title, snippet}. " +
-      "Call this first for any query that needs current information, then use fetch_url " +
-      "on the most promising results to read the full page. Always cite sources.",
+      "Search the web. Returns a ranked list of {link, title, snippet}.\n\n" +
+      "CALL this tool when the user asks about:\n" +
+      "- current events, news, or time-sensitive info\n" +
+      "- specific facts you're not confident in (dates, prices, versions, people's roles)\n" +
+      "- anything that may have changed after your training cutoff\n" +
+      "- a URL, product, or name you don't recognize\n\n" +
+      "Unless you're 100% certain, you MUST call web_search instead of guessing/hallucinating.\n\n" +
+      "After searching, use fetch_url on 1-3 promising results. Always cite sources.",
     inputSchema: z.object({
       query: z.string().describe("The search query"),
       limit: z

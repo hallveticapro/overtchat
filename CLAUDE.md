@@ -41,7 +41,7 @@ Config is stored in `localStorage` under `overtchat_config` and synced two ways:
 ### Chat data flow
 
 1. `ChatArea.tsx` uses `useChat` from `@ai-sdk/react` with a `DefaultChatTransport` and passes `baseUrl`, `apiKey`, `model`, `searchEnabled` through `sendMessage(msg, { body })` on each send — a fresh snapshot per request.
-2. `app/api/chat/route.ts` validates the session (401 if absent), spins up a per-request `createOpenAICompatible` provider, wraps it with `extractReasoningMiddleware` (parses `<think>` tags into reasoning parts), and streams via `streamText`. Tools are only registered when `searchEnabled` is true; `stopWhen: stepCountIs(5)` caps multi-step tool loops.
+2. `app/api/chat/route.ts` validates the session (401 if absent), spins up a per-request `createOpenAICompatible` provider, wraps it with `extractReasoningMiddleware` (parses `<think>` tags into reasoning parts), and streams via `streamText`. Tools are only registered when `searchEnabled` is true; `stopWhen: stepCountIs(10)` caps multi-step tool loops.
 3. The UI renders message parts by `part.type`: `text` → `Streamdown` (markdown + KaTeX + Shiki via `@streamdown/code|math|cjk`), `reasoning` → `<ThinkingBlock>`, `tool-web_search` / `tool-fetch_url` → `<ToolCall>` (reads AI SDK v6 state machine: `input-streaming` | `input-available` | `output-available` | `output-error`).
 
 ### Web search
