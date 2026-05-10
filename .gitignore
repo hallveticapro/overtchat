@@ -37,6 +37,9 @@ yarn-error.log*
 .env
 .env*.local
 
+# local-only compose overrides (per-developer)
+*.local.yml
+
 # vercel
 .vercel
 
@@ -49,3 +52,6 @@ next-env.d.ts
 .idea/
 *.swp
 *.swo
+
+# cache
+/vllm-cache
