@@ -168,3 +168,27 @@ export const messagesRelations = relations(messages, ({ one }) => ({
     references: [chats.id],
   }),
 }));
+
+export const uploads = sqliteTable(
+  "uploads",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    filename: text("filename").notNull(),
+    mediaType: text("media_type").notNull(),
+    size: integer("size").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+  },
+  (table) => [index("uploads_userId_idx").on(table.userId)],
+);
+
+export const uploadsRelations = relations(uploads, ({ one }) => ({
+  user: one(user, {
+    fields: [uploads.userId],
+    references: [user.id],
+  }),
+}));
