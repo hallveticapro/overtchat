@@ -36,6 +36,18 @@ CREATE TABLE `messages` (
 );
 --> statement-breakpoint
 CREATE INDEX `messages_chatId_createdAt_idx` ON `messages` (`chat_id`,`created_at`);--> statement-breakpoint
+CREATE TABLE `model_presets` (
+	`id` text PRIMARY KEY NOT NULL,
+	`label` text NOT NULL,
+	`base_url` text NOT NULL,
+	`api_key` text,
+	`model` text NOT NULL,
+	`extra_body` text,
+	`sort_order` integer DEFAULT 0 NOT NULL,
+	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `session` (
 	`id` text PRIMARY KEY NOT NULL,
 	`expires_at` integer NOT NULL,

@@ -2,23 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plug, Settings2, User, Users } from "lucide-react";
+import { Cpu, Settings2, User, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth/client";
 
 type Item = {
   href: string;
   label: string;
-  icon: typeof Plug;
+  icon: typeof Cpu;
 };
 
 const USER_ITEMS: Item[] = [
   { href: "/settings/general", label: "General", icon: Settings2 },
-  { href: "/settings/api-endpoint", label: "API endpoint", icon: Plug },
   { href: "/settings/account", label: "Account", icon: User },
 ];
 
 const ADMIN_ITEMS: Item[] = [
+  { href: "/settings/models", label: "Models", icon: Cpu },
   { href: "/settings/users", label: "Users", icon: Users },
 ];
 

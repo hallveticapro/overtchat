@@ -8,6 +8,7 @@ import {
   type LanguageModel,
   type UIMessage,
 } from "ai";
+import type { JSONValue } from "@ai-sdk/provider";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { webTools } from "@/lib/tools";
 import { auth } from "@/lib/auth/server";
@@ -19,19 +20,20 @@ import {
   touchChat,
 } from "@/lib/db/chats";
 import { inlineUploads } from "@/lib/db/uploads";
+import { getPreset } from "@/lib/db/presets";
 
 export const maxDuration = 300;
 
 interface Body {
   messages: UIMessage[];
-  baseUrl: string;
-  apiKey?: string;
-  model: string;
+  presetId: string;
   searchEnabled?: boolean;
   chatId: string;
   trigger?: "submit-message" | "regenerate-message";
   messageId?: string;
 }
+
+const PROVIDER_NAME = "user-endpoint";
 
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers });
@@ -40,24 +42,19 @@ export async function POST(req: Request) {
 
   const {
     messages,
-    baseUrl,
-    apiKey,
-    model,
+    presetId,
     searchEnabled,
     chatId,
     trigger,
     messageId,
   } = (await req.json()) as Body;
 
-  if (!baseUrl || !model) {
-    return new Response("Missing baseUrl or model", { status: 400 });
-  }
-  if (!messages.length) {
-    return new Response("No messages", { status: 400 });
-  }
-  if (!chatId) {
-    return new Response("Missing chatId", { status: 400 });
-  }
+  if (!presetId) return new Response("Missing presetId", { status: 400 });
+  if (!messages.length) return new Response("No messages", { status: 400 });
+  if (!chatId) return new Response("Missing chatId", { status: 400 });
+
+  const preset = await getPreset(presetId);
+  if (!preset) return new Response("Preset not found", { status: 404 });
 
   const chat = await ensureChat(chatId, userId);
   if (!chat) return new Response("Not found", { status: 404 });
@@ -72,17 +69,20 @@ export async function POST(req: Request) {
   await touchChat(chatId);
 
   const provider = createOpenAICompatible({
-    name: "user-endpoint",
-    baseURL: baseUrl.replace(/\/$/, ""),
-    apiKey: apiKey || "none",
+    name: PROVIDER_NAME,
+    baseURL: preset.baseUrl.replace(/\/$/, ""),
+    apiKey: preset.apiKey || "none",
   });
 
   const wrapped = wrapLanguageModel({
-    model: provider.chatModel(model),
+    model: provider.chatModel(preset.model),
     middleware: extractReasoningMiddleware({ tagName: "think" }),
   });
 
   const inlined = await inlineUploads(messages, userId);
+  const providerOptions = preset.extraBody
+    ? { [PROVIDER_NAME]: preset.extraBody as Record<string, JSONValue> }
+    : undefined;
 
   const result = streamText({
     model: wrapped,
@@ -90,6 +90,7 @@ export async function POST(req: Request) {
     tools: searchEnabled ? webTools : undefined,
     stopWhen: searchEnabled ? stepCountIs(10) : undefined,
     abortSignal: req.signal,
+    providerOptions,
   });
 
   return result.toUIMessageStreamResponse({

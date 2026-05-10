@@ -191,3 +191,20 @@ export const uploadsRelations = relations(uploads, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+export const modelPresets = sqliteTable("model_presets", {
+  id: text("id").primaryKey(),
+  label: text("label").notNull(),
+  baseUrl: text("base_url").notNull(),
+  apiKey: text("api_key"),
+  model: text("model").notNull(),
+  extraBody: text("extra_body", { mode: "json" }).$type<Record<string, unknown>>(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});

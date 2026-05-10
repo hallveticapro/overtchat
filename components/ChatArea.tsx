@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
@@ -24,7 +23,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { type ApiConfig } from "@/lib/config";
+import {
+  fetchPresets,
+  useSelectedPreset,
+  type PublicPreset,
+} from "@/lib/config";
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { ModelPicker } from "@/components/ModelPicker";
 import {
@@ -36,22 +39,38 @@ import {
 const SEARCH_STORAGE_KEY = "overtchat_search_enabled";
 
 interface Props {
-  config: ApiConfig;
-  onConfigChange: (config: ApiConfig) => void;
   chatId?: string;
   initialMessages?: UIMessage[];
 }
 
 const PLUGINS = { code, math, cjk };
 
-export function ChatArea({
-  config,
-  onConfigChange,
-  chatId,
-  initialMessages,
-}: Props) {
+export function ChatArea({ chatId, initialMessages }: Props) {
   const router = useRouter();
-  const configured = Boolean(config.baseUrl && config.model);
+
+  const [presets, setPresets] = useState<PublicPreset[] | null>(null);
+  const [selectedId, setSelectedId] = useSelectedPreset();
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPresets()
+      .then((list) => {
+        if (cancelled) return;
+        setPresets(list);
+        if (list.length > 0 && !list.some((p) => p.id === selectedId)) {
+          setSelectedId(list[0].id);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPresets([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const configured = (presets?.length ?? 0) > 0 && Boolean(selectedId);
 
   const [searchEnabled, setSearchEnabled] = useLocalStorage<boolean>(
     SEARCH_STORAGE_KEY,
@@ -71,9 +90,7 @@ export function ChatArea({
   });
 
   const requestBody = () => ({
-    baseUrl: config.baseUrl,
-    apiKey: config.apiKey,
-    model: config.model,
+    presetId: selectedId,
     searchEnabled,
     chatId: chatIdRef.current,
   });
@@ -113,10 +130,7 @@ export function ChatArea({
     const text = input.trim();
     if (streaming || uploading) return;
     if (!text && attachments.length === 0) return;
-    if (!configured) {
-      router.push("/settings");
-      return;
-    }
+    if (!configured) return;
     if (!chatIdRef.current) {
       const id = crypto.randomUUID();
       chatIdRef.current = id;
@@ -195,8 +209,9 @@ export function ChatArea({
     <div className="flex flex-1 flex-col overflow-hidden">
       <header className="flex h-12 shrink-0 items-center border-b px-3">
         <ModelPicker
-          config={config}
-          onChange={onConfigChange}
+          presets={presets}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
         />
       </header>
 
@@ -248,7 +263,7 @@ export function ChatArea({
             <Textarea
               ref={textareaRef}
               rows={1}
-              placeholder={configured ? "Message…" : "Configure an API endpoint to start chatting"}
+              placeholder={configured ? "Message…" : "No models available — ask an admin to add one"}
               className="max-h-48 min-h-6 resize-none border-0 bg-transparent px-1 py-1 shadow-none focus-visible:ring-0 md:text-sm"
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -334,13 +349,8 @@ function EmptyState({ configured }: { configured: boolean }) {
       <p className="mt-3 max-w-sm text-sm text-muted-foreground">
         {configured
           ? "Ask a question or start a conversation."
-          : "Point overtchat at any OpenAI-compatible endpoint to begin."}
+          : "No models configured yet. An admin needs to add one in Settings → Models."}
       </p>
-      {!configured && (
-        <Button render={<Link href="/settings" />} variant="outline" className="mt-5">
-          Configure endpoint
-        </Button>
-      )}
     </div>
   );
 }
