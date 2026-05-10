@@ -9,7 +9,17 @@ import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { cjk } from "@streamdown/cjk";
-import { ArrowUp, Globe, Sparkles, Square } from "lucide-react";
+import {
+  ArrowUp,
+  Check,
+  Copy,
+  Globe,
+  Pencil,
+  RotateCcw,
+  Sparkles,
+  Square,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -53,10 +63,18 @@ export function ChatArea({
     () => new DefaultChatTransport<UIMessage>({ api: "/api/chat" }),
   );
 
-  const { messages, sendMessage, status, stop, error } = useChat({
+  const { messages, sendMessage, regenerate, status, stop, error } = useChat({
     transport,
     messages: initialMessages,
     onFinish: () => router.refresh(),
+  });
+
+  const requestBody = () => ({
+    baseUrl: config.baseUrl,
+    apiKey: config.apiKey,
+    model: config.model,
+    searchEnabled,
+    chatId: chatIdRef.current,
   });
 
   const [input, setInput] = useState("");
@@ -98,19 +116,18 @@ export function ChatArea({
       chatIdRef.current = id;
       window.history.replaceState(null, "", `/chat/${id}`);
     }
-    sendMessage(
-      { text },
-      {
-        body: {
-          baseUrl: config.baseUrl,
-          apiKey: config.apiKey,
-          model: config.model,
-          searchEnabled,
-          chatId: chatIdRef.current,
-        },
-      },
-    );
+    sendMessage({ text }, { body: requestBody() });
     setInput("");
+  }
+
+  function handleRegenerate(messageId: string) {
+    if (streaming || !configured) return;
+    regenerate({ messageId, body: requestBody() });
+  }
+
+  function handleEdit(messageId: string, text: string) {
+    if (streaming || !configured) return;
+    sendMessage({ text, messageId }, { body: requestBody() });
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -143,6 +160,9 @@ export function ChatArea({
                 key={m.id}
                 message={m}
                 streaming={streaming && i === messages.length - 1}
+                canAct={!streaming && configured}
+                onRegenerate={handleRegenerate}
+                onEdit={handleEdit}
               />
             ))}
           </div>
@@ -233,29 +253,62 @@ function EmptyState({ configured }: { configured: boolean }) {
   );
 }
 
+function textOf(message: UIMessage): string {
+  return message.parts
+    .filter((p) => p.type === "text")
+    .map((p) => p.text)
+    .join("");
+}
+
 function MessageBubble({
   message,
   streaming,
+  canAct,
+  onRegenerate,
+  onEdit,
 }: {
   message: UIMessage;
   streaming: boolean;
+  canAct: boolean;
+  onRegenerate: (id: string) => void;
+  onEdit: (id: string, text: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+
   if (message.role === "user") {
-    const text = message.parts
-      .filter((p) => p.type === "text")
-      .map((p) => p.text)
-      .join("");
+    const text = textOf(message);
+    if (editing) {
+      return (
+        <EditBubble
+          initial={text}
+          onCancel={() => setEditing(false)}
+          onSave={(next) => {
+            setEditing(false);
+            if (next.trim() && next !== text) onEdit(message.id, next);
+          }}
+        />
+      );
+    }
     return (
-      <div className="flex justify-end">
+      <div className="group flex flex-col items-end gap-1">
         <div className="max-w-[80%] rounded-2xl bg-secondary px-4 py-2.5 text-sm whitespace-pre-wrap text-secondary-foreground">
           {text}
         </div>
+        <MessageActions show={canAct}>
+          <CopyButton text={text} />
+          <ActionButton
+            label="Edit"
+            onClick={() => setEditing(true)}
+            icon={<Pencil className="size-3.5" />}
+          />
+        </MessageActions>
       </div>
     );
   }
 
+  const text = textOf(message);
   return (
-    <div className="flex justify-start">
+    <div className="group flex flex-col items-start gap-2">
       <div className="w-full max-w-full space-y-3 text-sm leading-relaxed">
         {message.parts.map((part, i) => {
           if (part.type === "reasoning") {
@@ -287,6 +340,139 @@ function MessageBubble({
           }
           return null;
         })}
+      </div>
+      {!streaming && (
+        <MessageActions show={canAct}>
+          <CopyButton text={text} />
+          <ActionButton
+            label="Regenerate"
+            onClick={() => onRegenerate(message.id)}
+            icon={<RotateCcw className="size-3.5" />}
+          />
+        </MessageActions>
+      )}
+    </div>
+  );
+}
+
+function MessageActions({
+  show,
+  children,
+}: {
+  show: boolean;
+  children: React.ReactNode;
+}) {
+  if (!show) return null;
+  return (
+    <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      {children}
+    </div>
+  );
+}
+
+function ActionButton({
+  label,
+  icon,
+  onClick,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+    >
+      {icon}
+    </button>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <ActionButton
+      label={copied ? "Copied" : "Copy"}
+      icon={
+        copied ? (
+          <Check className="size-3.5" />
+        ) : (
+          <Copy className="size-3.5" />
+        )
+      }
+      onClick={() => {
+        void navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        });
+      }}
+    />
+  );
+}
+
+function EditBubble({
+  initial,
+  onCancel,
+  onSave,
+}: {
+  initial: string;
+  onCancel: () => void;
+  onSave: (text: string) => void;
+}) {
+  const [draft, setDraft] = useState(initial);
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, []);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
+
+  return (
+    <div className="flex w-full justify-end">
+      <div className="flex w-full max-w-[80%] flex-col gap-2 rounded-2xl bg-secondary px-4 py-2.5">
+        <Textarea
+          ref={ref}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              onSave(draft);
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              onCancel();
+            }
+          }}
+          className="min-h-0 resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 md:text-sm"
+        />
+        <div className="flex justify-end gap-1">
+          <ActionButton
+            label="Cancel"
+            onClick={onCancel}
+            icon={<X className="size-3.5" />}
+          />
+          <ActionButton
+            label="Save"
+            onClick={() => onSave(draft)}
+            icon={<Check className="size-3.5" />}
+          />
+        </div>
       </div>
     </div>
   );

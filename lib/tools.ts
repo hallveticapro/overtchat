@@ -35,4 +35,4 @@ export const webTools = {
     }),
     execute: async ({ url }) => fetchReadable(url),
   }),
-};
+}

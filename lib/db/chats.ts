@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
 import type { UIMessage, UIMessagePart, UIDataTypes, UITools } from "ai";
 import { db } from "@/lib/db/client";
 import { chats, messages } from "@/lib/db/schema";
@@ -81,10 +81,32 @@ export async function appendMessage(
   chatId: string,
   role: "user" | "assistant" | "system",
   parts: AnyPart[],
+  id: string = crypto.randomUUID(),
 ): Promise<{ id: string }> {
-  const id = crypto.randomUUID();
   await db.insert(messages).values({ id, chatId, role, parts });
   return { id };
+}
+
+/**
+ * Deletes the message with `fromId` and every later message in the same chat.
+ * Used by edit (delete the edited user msg + everything after, then re-insert)
+ * and regenerate (delete the assistant msg + anything after it).
+ */
+export async function deleteMessagesFrom(
+  chatId: string,
+  fromId: string,
+): Promise<void> {
+  const [row] = await db
+    .select({ createdAt: messages.createdAt })
+    .from(messages)
+    .where(and(eq(messages.chatId, chatId), eq(messages.id, fromId)))
+    .limit(1);
+  if (!row) return;
+  await db
+    .delete(messages)
+    .where(
+      and(eq(messages.chatId, chatId), gte(messages.createdAt, row.createdAt)),
+    );
 }
 
 export async function getMessages(chatId: string): Promise<UIMessage[]> {

@@ -13,6 +13,7 @@ import { webTools } from "@/lib/tools";
 import { auth } from "@/lib/auth/server";
 import {
   appendMessage,
+  deleteMessagesFrom,
   ensureChat,
   setTitleIfNull,
   touchChat,
@@ -27,6 +28,8 @@ interface Body {
   model: string;
   searchEnabled?: boolean;
   chatId: string;
+  trigger?: "submit-message" | "regenerate-message";
+  messageId?: string;
 }
 
 export async function POST(req: Request) {
@@ -34,8 +37,16 @@ export async function POST(req: Request) {
   if (!session) return new Response("Unauthorized", { status: 401 });
   const userId = session.user.id;
 
-  const { messages, baseUrl, apiKey, model, searchEnabled, chatId } =
-    (await req.json()) as Body;
+  const {
+    messages,
+    baseUrl,
+    apiKey,
+    model,
+    searchEnabled,
+    chatId,
+    trigger,
+    messageId,
+  } = (await req.json()) as Body;
 
   if (!baseUrl || !model) {
     return new Response("Missing baseUrl or model", { status: 400 });
@@ -51,8 +62,11 @@ export async function POST(req: Request) {
   if (!chat) return new Response("Not found", { status: 404 });
 
   const last = messages[messages.length - 1];
-  if (last.role === "user") {
-    await appendMessage(chatId, "user", last.parts);
+  if (trigger === "regenerate-message") {
+    if (messageId) await deleteMessagesFrom(chatId, messageId);
+  } else if (last.role === "user") {
+    if (messageId) await deleteMessagesFrom(chatId, messageId);
+    await appendMessage(chatId, "user", last.parts, last.id);
   }
   await touchChat(chatId);
 
@@ -77,10 +91,17 @@ export async function POST(req: Request) {
 
   return result.toUIMessageStreamResponse({
     sendReasoning: true,
+    originalMessages: messages,
+    generateMessageId: () => crypto.randomUUID(),
     onFinish: async ({ responseMessage, isAborted }) => {
       if (isAborted) return;
       try {
-        await appendMessage(chatId, "assistant", responseMessage.parts);
+        await appendMessage(
+          chatId,
+          "assistant",
+          responseMessage.parts,
+          responseMessage.id,
+        );
         await touchChat(chatId);
       } catch (err) {
         console.error("[persist-assistant]", err);
