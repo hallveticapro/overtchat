@@ -24,9 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
-  fetchPresets,
-  useSelectedPreset,
-  type PublicPreset,
+  fetchModelConfigs,
+  useSelectedModel,
+  type PublicModelConfig,
 } from "@/lib/config";
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { ModelPicker } from "@/components/ModelPicker";
@@ -49,21 +49,21 @@ const PLUGINS = { code, math, cjk };
 export function ChatArea({ chatId, initialMessages }: Props) {
   const router = useRouter();
 
-  const [presets, setPresets] = useState<PublicPreset[] | null>(null);
-  const [selectedId, setSelectedId] = useSelectedPreset();
+  const [models, setModels] = useState<PublicModelConfig[] | null>(null);
+  const [selectedId, setSelectedId] = useSelectedModel();
 
   useEffect(() => {
     let cancelled = false;
-    fetchPresets()
+    fetchModelConfigs()
       .then((list) => {
         if (cancelled) return;
-        setPresets(list);
-        if (list.length > 0 && !list.some((p) => p.id === selectedId)) {
+        setModels(list);
+        if (list.length > 0 && !list.some((m) => m.id === selectedId)) {
           setSelectedId(list[0].id);
         }
       })
       .catch(() => {
-        if (!cancelled) setPresets([]);
+        if (!cancelled) setModels([]);
       });
     return () => {
       cancelled = true;
@@ -71,7 +71,7 @@ export function ChatArea({ chatId, initialMessages }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const configured = (presets?.length ?? 0) > 0 && Boolean(selectedId);
+  const configured = (models?.length ?? 0) > 0 && Boolean(selectedId);
 
   const [searchEnabled, setSearchEnabled] = useLocalStorage<boolean>(
     SEARCH_STORAGE_KEY,
@@ -91,7 +91,7 @@ export function ChatArea({ chatId, initialMessages }: Props) {
   });
 
   const requestBody = () => ({
-    presetId: selectedId,
+    modelConfigId: selectedId,
     searchEnabled,
     chatId: chatIdRef.current,
   });
@@ -211,7 +211,7 @@ export function ChatArea({ chatId, initialMessages }: Props) {
       <header className="flex h-12 shrink-0 items-center gap-1 border-b px-3">
         <SidebarToggle className="md:hidden" />
         <ModelPicker
-          presets={presets}
+          models={models}
           selectedId={selectedId}
           onSelect={setSelectedId}
         />

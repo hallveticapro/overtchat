@@ -8,20 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   fetchModelsForEndpoint,
-  type AdminPreset,
-  type PresetInput,
+  type AdminModelConfig,
+  type ModelConfigInput,
 } from "@/lib/config";
 
-type Mode = AdminPreset | "new" | null;
+type Mode = AdminModelConfig | "new" | null;
 
-export function PresetDialog({
+export function ModelConfigDialog({
   mode,
   onClose,
   onSave,
 }: {
   mode: Mode;
   onClose: () => void;
-  onSave: (input: PresetInput, id?: string) => Promise<void>;
+  onSave: (input: ModelConfigInput, id?: string) => Promise<void>;
 }) {
   const open = mode !== null;
   return (
@@ -30,7 +30,7 @@ export function PresetDialog({
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/40 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 transition-opacity" />
         <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-6 shadow-lg outline-none data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 transition-opacity">
           {mode && (
-            <PresetForm
+            <ModelConfigForm
               editing={mode === "new" ? null : mode}
               onClose={onClose}
               onSave={onSave}
@@ -42,16 +42,16 @@ export function PresetDialog({
   );
 }
 
-function PresetForm({
+function ModelConfigForm({
   editing,
   onClose,
   onSave,
 }: {
-  editing: AdminPreset | null;
+  editing: AdminModelConfig | null;
   onClose: () => void;
-  onSave: (input: PresetInput, id?: string) => Promise<void>;
+  onSave: (input: ModelConfigInput, id?: string) => Promise<void>;
 }) {
-  const [draft, setDraft] = useState<PresetInput>(() =>
+  const [draft, setDraft] = useState<ModelConfigInput>(() =>
     editing
       ? {
           label: editing.label,
@@ -85,7 +85,7 @@ function PresetForm({
     | null
   >(null);
 
-  function updateDraft(patch: Partial<PresetInput>) {
+  function updateDraft(patch: Partial<ModelConfigInput>) {
     setDraft((d) => ({ ...d, ...patch }));
     setPingResult(null);
   }
@@ -129,7 +129,7 @@ function PresetForm({
     setPinging(true);
     setPingResult(null);
     try {
-      const res = await fetch("/api/presets/ping", {
+      const res = await fetch("/api/model-configs/ping", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -192,7 +192,7 @@ export const uploadsRelations = relations(uploads, ({ one }) => ({
   }),
 }));
 
-export const modelPresets = sqliteTable("model_presets", {
+export const modelConfigs = sqliteTable("model_configs", {
   id: text("id").primaryKey(),
   label: text("label").notNull(),
   baseUrl: text("base_url").notNull(),

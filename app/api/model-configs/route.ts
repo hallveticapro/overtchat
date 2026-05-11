@@ -1,13 +1,13 @@
 import { auth } from "@/lib/auth/server";
 import {
-  createPreset,
-  listPresets,
-  type PresetInput,
-} from "@/lib/db/presets";
-import type { AdminPreset, PublicPreset } from "@/lib/config";
-import type { PresetRow } from "@/lib/db/presets";
+  createModelConfig,
+  listModelConfigs,
+  type ModelConfigInput,
+  type ModelConfigRow,
+} from "@/lib/db/modelConfigs";
+import type { AdminModelConfig, PublicModelConfig } from "@/lib/config";
 
-function toPublic(row: PresetRow): PublicPreset {
+function toPublic(row: ModelConfigRow): PublicModelConfig {
   return {
     id: row.id,
     label: row.label,
@@ -16,7 +16,7 @@ function toPublic(row: PresetRow): PublicPreset {
   };
 }
 
-function toAdmin(row: PresetRow): AdminPreset {
+function toAdmin(row: ModelConfigRow): AdminModelConfig {
   return {
     id: row.id,
     label: row.label,
@@ -34,15 +34,15 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const wantAdmin = url.searchParams.get("admin") === "1";
-  const rows = await listPresets();
+  const rows = await listModelConfigs();
 
   if (wantAdmin) {
     if (session.user.role !== "admin") {
       return new Response("Forbidden", { status: 403 });
     }
-    return Response.json({ presets: rows.map(toAdmin) });
+    return Response.json({ modelConfigs: rows.map(toAdmin) });
   }
-  return Response.json({ presets: rows.map(toPublic) });
+  return Response.json({ modelConfigs: rows.map(toPublic) });
 }
 
 export async function POST(req: Request) {
@@ -52,13 +52,13 @@ export async function POST(req: Request) {
     return new Response("Forbidden", { status: 403 });
   }
 
-  const body = (await req.json()) as PresetInput;
+  const body = (await req.json()) as ModelConfigInput;
   if (!body.label?.trim() || !body.baseUrl?.trim() || !body.model?.trim()) {
     return Response.json(
       { error: "label, baseUrl, and model are required" },
       { status: 400 },
     );
   }
-  const row = await createPreset(body);
-  return Response.json({ preset: toAdmin(row) }, { status: 201 });
+  const row = await createModelConfig(body);
+  return Response.json({ modelConfig: toAdmin(row) }, { status: 201 });
 }

@@ -4,22 +4,22 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  fetchAdminPresets,
-  type AdminPreset,
-  type PresetInput,
+  fetchAdminModelConfigs,
+  type AdminModelConfig,
+  type ModelConfigInput,
 } from "@/lib/config";
-import { PresetDialog } from "./PresetDialog";
+import { ModelConfigDialog } from "./ModelConfigDialog";
 
 export function ModelsPanel() {
-  const [presets, setPresets] = useState<AdminPreset[]>([]);
+  const [modelConfigs, setModelConfigs] = useState<AdminModelConfig[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
-  const [editing, setEditing] = useState<AdminPreset | "new" | null>(null);
+  const [editing, setEditing] = useState<AdminModelConfig | "new" | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const list = await fetchAdminPresets();
-      setPresets(list);
+      const list = await fetchAdminModelConfigs();
+      setModelConfigs(list);
       setStatus("ready");
     } catch (e) {
       setStatus("error");
@@ -31,9 +31,9 @@ export function ModelsPanel() {
     let cancelled = false;
     (async () => {
       try {
-        const list = await fetchAdminPresets();
+        const list = await fetchAdminModelConfigs();
         if (cancelled) return;
-        setPresets(list);
+        setModelConfigs(list);
         setStatus("ready");
       } catch (e) {
         if (cancelled) return;
@@ -48,7 +48,7 @@ export function ModelsPanel() {
 
   async function remove(id: string, label: string) {
     if (!confirm(`Delete "${label}"?`)) return;
-    const res = await fetch(`/api/presets/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/model-configs/${id}`, { method: "DELETE" });
     if (!res.ok) {
       alert(`Failed to delete (${res.status})`);
       return;
@@ -56,8 +56,8 @@ export function ModelsPanel() {
     void load();
   }
 
-  async function save(input: PresetInput, id?: string) {
-    const url = id ? `/api/presets/${id}` : "/api/presets";
+  async function save(input: ModelConfigInput, id?: string) {
+    const url = id ? `/api/model-configs/${id}` : "/api/model-configs";
     const method = id ? "PATCH" : "POST";
     const res = await fetch(url, {
       method,
@@ -94,13 +94,13 @@ export function ModelsPanel() {
       )}
       {status === "error" && <p className="text-sm text-destructive">{error}</p>}
 
-      {status === "ready" && presets.length === 0 && (
+      {status === "ready" && modelConfigs.length === 0 && (
         <p className="text-sm text-muted-foreground">
           No models yet. Click “Add model” to create the first one.
         </p>
       )}
 
-      {status === "ready" && presets.length > 0 && (
+      {status === "ready" && modelConfigs.length > 0 && (
         <div className="overflow-hidden rounded-lg border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -112,29 +112,29 @@ export function ModelsPanel() {
               </tr>
             </thead>
             <tbody>
-              {presets.map((p) => (
-                <tr key={p.id} className="border-b last:border-0">
-                  <td className="px-3 py-2 font-medium">{p.label}</td>
+              {modelConfigs.map((m) => (
+                <tr key={m.id} className="border-b last:border-0">
+                  <td className="px-3 py-2 font-medium">{m.label}</td>
                   <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                    {p.model}
+                    {m.model}
                   </td>
                   <td className="px-3 py-2 truncate text-xs text-muted-foreground">
-                    {p.baseUrl}
+                    {m.baseUrl}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      onClick={() => setEditing(p)}
-                      aria-label={`Edit ${p.label}`}
+                      onClick={() => setEditing(m)}
+                      aria-label={`Edit ${m.label}`}
                     >
                       <Pencil />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      onClick={() => remove(p.id, p.label)}
-                      aria-label={`Delete ${p.label}`}
+                      onClick={() => remove(m.id, m.label)}
+                      aria-label={`Delete ${m.label}`}
                     >
                       <Trash2 />
                     </Button>
@@ -146,7 +146,7 @@ export function ModelsPanel() {
         </div>
       )}
 
-      <PresetDialog
+      <ModelConfigDialog
         mode={editing}
         onClose={() => setEditing(null)}
         onSave={save}

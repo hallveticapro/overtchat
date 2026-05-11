@@ -1,14 +1,14 @@
 import { auth } from "@/lib/auth/server";
 import {
-  deletePreset,
-  getPreset,
-  updatePreset,
-  type PresetInput,
-} from "@/lib/db/presets";
-import type { AdminPreset } from "@/lib/config";
-import type { PresetRow } from "@/lib/db/presets";
+  deleteModelConfig,
+  getModelConfig,
+  updateModelConfig,
+  type ModelConfigInput,
+  type ModelConfigRow,
+} from "@/lib/db/modelConfigs";
+import type { AdminModelConfig } from "@/lib/config";
 
-function toAdmin(row: PresetRow): AdminPreset {
+function toAdmin(row: ModelConfigRow): AdminModelConfig {
   return {
     id: row.id,
     label: row.label,
@@ -37,19 +37,19 @@ export async function PATCH(
   if ("error" in guard) return guard.error;
 
   const { id } = await params;
-  const existing = await getPreset(id);
+  const existing = await getModelConfig(id);
   if (!existing) return new Response("Not found", { status: 404 });
 
-  const body = (await req.json()) as PresetInput;
+  const body = (await req.json()) as ModelConfigInput;
   if (!body.label?.trim() || !body.baseUrl?.trim() || !body.model?.trim()) {
     return Response.json(
       { error: "label, baseUrl, and model are required" },
       { status: 400 },
     );
   }
-  const row = await updatePreset(id, body);
+  const row = await updateModelConfig(id, body);
   if (!row) return new Response("Not found", { status: 404 });
-  return Response.json({ preset: toAdmin(row) });
+  return Response.json({ modelConfig: toAdmin(row) });
 }
 
 export async function DELETE(
@@ -60,6 +60,6 @@ export async function DELETE(
   if ("error" in guard) return guard.error;
 
   const { id } = await params;
-  await deletePreset(id);
+  await deleteModelConfig(id);
   return new Response(null, { status: 204 });
 }

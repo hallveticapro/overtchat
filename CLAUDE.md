@@ -19,13 +19,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 overtchat is a simpler self-hosted alternative to OpenWebUI. Load-bearing principles:
 
-- **Admin-managed OpenAI-compatible endpoints.** Admins create "presets" (label + baseUrl + apiKey + model + optional extraBody) in Settings → Models; these are stored in the `model_presets` table. Regular users only see the label and pick one from a dropdown. The client never sees credentials.
+- **Admin-managed OpenAI-compatible endpoints.** Admins create model configs (label + baseUrl + apiKey + model + optional extraBody) in Settings → Models; these are stored in the `model_configs` table. Regular users only see the label and pick one from a dropdown. The client never sees credentials.
 - **No RAG.** Web search results go straight into context. Never propose embeddings, vector DBs, or chunking.
 - **Tool calling, not magic modes.** Search is a tool the model calls when the globe toggle is on. No prompt-injection tricks or forced-search flows.
-
-## Naming quirk
-
-The code uses "preset" and "model" interchangeably for the same thing (a saved endpoint config). DB table is `model_presets`, API is `/api/presets`, settings page is `/settings/models`, UI button says "Add model". A full rename is pending — for now, just know they're the same concept.
 
 ## Architecture
 
@@ -39,13 +35,13 @@ Two top-level groups under `app/`:
 `app/(app)/settings/layout.tsx` is `h-full`, not `h-screen` — settings fills the main slot, it doesn't replace the sidebar.
 
 The only client-side persisted state is two localStorage keys, read/written via `lib/useLocalStorage.ts` (`useSyncExternalStore` with a cross-tab listener):
-- `overtchat_selected_preset` — id of the preset the user picked in `ModelPicker`
+- `overtchat_selected_model` — id of the model config the user picked in `ModelPicker`
 - `overtchat_search_enabled` — globe toggle state
 
 ### Chat data flow
 
-1. `ChatArea.tsx` uses `useChat` from `@ai-sdk/react` with a `DefaultChatTransport` and passes `{ presetId, searchEnabled, chatId }` through `sendMessage(msg, { body })` on each send. On the first send of a new chat, it mints a UUID client-side and `history.replaceState`s the URL to `/chat/<id>` without navigating.
-2. `app/api/chat/route.ts` validates the session (401 if absent), loads the preset from the DB, persists the incoming user message, then spins up a per-request `createOpenAICompatible` provider from the preset's `baseUrl`/`apiKey`/`model`. It wraps the model with `extractReasoningMiddleware` (parses `<think>` tags into reasoning parts), passes `preset.extraBody` as `providerOptions["user-endpoint"]`, and streams via `streamText`. Tools are only registered when `searchEnabled` is true; `stopWhen: stepCountIs(10)` caps multi-step tool loops. On finish, the assistant message is appended and a title is generated asynchronously via `generateText` against the same wrapped model.
+1. `ChatArea.tsx` uses `useChat` from `@ai-sdk/react` with a `DefaultChatTransport` and passes `{ modelConfigId, searchEnabled, chatId }` through `sendMessage(msg, { body })` on each send. On the first send of a new chat, it mints a UUID client-side and `history.replaceState`s the URL to `/chat/<id>` without navigating.
+2. `app/api/chat/route.ts` validates the session (401 if absent), loads the model config from the DB, persists the incoming user message, then spins up a per-request `createOpenAICompatible` provider from the config's `baseUrl`/`apiKey`/`model`. It wraps the model with `extractReasoningMiddleware` (parses `<think>` tags into reasoning parts), passes `modelConfig.extraBody` as `providerOptions["user-endpoint"]`, and streams via `streamText`. Tools are only registered when `searchEnabled` is true; `stopWhen: stepCountIs(10)` caps multi-step tool loops. On finish, the assistant message is appended and a title is generated asynchronously via `generateText` against the same wrapped model.
 3. The UI renders message parts by `part.type`: `text` → `Streamdown` (markdown + KaTeX + Shiki via `@streamdown/code|math|cjk`), `reasoning` → `<ThinkingBlock>`, `tool-web_search` / `tool-fetch_url` → `<ToolCall>` (reads AI SDK v6 state machine: `input-streaming` | `input-available` | `output-available` | `output-error`).
 
 Edit + regenerate both reuse `/api/chat`: the client passes `trigger: "submit-message" | "regenerate-message"` and a `messageId`; the server calls `deleteMessagesFrom(chatId, messageId)` before streaming.
@@ -66,7 +62,7 @@ Images are uploaded to `POST /api/uploads` (multipart), written to disk at `./da
 - **Better Auth** in `lib/auth/server.ts`. Email+password only. `admin` plugin provides roles (`admin` + `user`) and user management API. `nextCookies()` plugin must stay last so server actions can set cookies.
 - **First-user-admin bootstrap**: `databaseHooks.user.create.before` is authoritative — it promotes the first user to `admin` and rejects all other unauthenticated creates with `APIError("BAD_REQUEST")`. `/signup` is just a UX shell: the page redirects to `/login` when users exist, and the server action `bootstrapSignUp` re-checks the count before calling `auth.api.signUpEmail`. Additional users come in via `authClient.admin.createUser(...)` from `/settings/users` (admin-only).
 - **Session validation**: `auth.api.getSession({ headers })` works in server components and route handlers. `(app)/layout.tsx` already guards all protected routes. Admin-only pages and routes check `session.user.role === "admin"` and return 403 / redirect on miss — UI-level filtering in `SettingsNav` is UX, not security.
-- **Preset credentials stay server-side.** `/api/presets` returns `{ id, label, model, hasExtraBody }` by default; only admins (via `?admin=1`) get the full row with `baseUrl`/`apiKey`. Anything that exposes credentials to non-admins is a bug.
+- **Model config credentials stay server-side.** `/api/model-configs` returns `{ id, label, model, hasExtraBody }` by default; only admins (via `?admin=1`) get the full row with `baseUrl`/`apiKey`. Anything that exposes credentials to non-admins is a bug.
 - **Schema evolution**: change auth config → `npm run auth:generate` → `npm run db:generate` → commit the new `drizzle/*.sql`. Migration runs on next boot.
 
 ### Tables
@@ -75,7 +71,7 @@ Images are uploaded to `POST /api/uploads` (multipart), written to disk at `./da
 - `chats` — `{ id, userId, title, createdAt, updatedAt }`, indexed on `(userId, updatedAt)`
 - `messages` — `{ id, chatId, role, parts (JSON), createdAt }`; `parts` is the full AI SDK `UIMessagePart[]` so we can round-trip tool calls and reasoning
 - `uploads` — `{ id, userId, filename, mediaType, createdAt }`; bytes live on disk under `./data/uploads/<id>`
-- `model_presets` — `{ id, label, baseUrl, apiKey, model, extraBody (JSON), sortOrder, ... }`
+- `model_configs` — `{ id, label, baseUrl, apiKey, model, extraBody (JSON), sortOrder, ... }`
 
 ## UI conventions
 

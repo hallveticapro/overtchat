@@ -4,23 +4,23 @@ import { Menu } from "@base-ui/react/menu";
 import { Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { PublicPreset } from "@/lib/config";
+import type { PublicModelConfig } from "@/lib/config";
 
 interface Props {
-  presets: PublicPreset[] | null;
+  models: PublicModelConfig[] | null;
   selectedId: string;
   onSelect: (id: string) => void;
 }
 
-export function ModelPicker({ presets, selectedId, onSelect }: Props) {
-  const loading = presets === null;
-  const selected = presets?.find((p) => p.id === selectedId) ?? null;
+export function ModelPicker({ models, selectedId, onSelect }: Props) {
+  const loading = models === null;
+  const selected = models?.find((m) => m.id === selectedId) ?? null;
 
   const label = loading
     ? "Loading…"
     : selected
       ? selected.label
-      : presets && presets.length > 0
+      : models && models.length > 0
         ? "Select a model"
         : "No models";
 
@@ -35,7 +35,7 @@ export function ModelPicker({ presets, selectedId, onSelect }: Props) {
               "min-w-0 max-w-[60%] gap-1.5",
               !selected && "text-muted-foreground",
             )}
-            disabled={loading || !presets || presets.length === 0}
+            disabled={loading || !models || models.length === 0}
           />
         }
       >
@@ -45,19 +45,19 @@ export function ModelPicker({ presets, selectedId, onSelect }: Props) {
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="start" sideOffset={6}>
           <Menu.Popup className="z-50 max-h-80 w-64 overflow-y-auto rounded-lg border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
-            {presets?.map((p) => (
+            {models?.map((m) => (
               <Menu.Item
-                key={p.id}
-                onClick={() => onSelect(p.id)}
+                key={m.id}
+                onClick={() => onSelect(m.id)}
                 className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
               >
                 <Check
                   className={cn(
                     "size-3.5 shrink-0",
-                    p.id === selectedId ? "opacity-100" : "opacity-0",
+                    m.id === selectedId ? "opacity-100" : "opacity-0",
                   )}
                 />
-                <span className="truncate">{p.label}</span>
+                <span className="truncate">{m.label}</span>
               </Menu.Item>
             ))}
           </Menu.Popup>

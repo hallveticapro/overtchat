@@ -1,11 +1,11 @@
 import "server-only";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { modelPresets } from "@/lib/db/schema";
+import { modelConfigs } from "@/lib/db/schema";
 
-export type PresetRow = typeof modelPresets.$inferSelect;
+export type ModelConfigRow = typeof modelConfigs.$inferSelect;
 
-export type PresetInput = {
+export type ModelConfigInput = {
   label: string;
   baseUrl: string;
   apiKey?: string | null;
@@ -14,25 +14,25 @@ export type PresetInput = {
   sortOrder?: number;
 };
 
-export async function listPresets(): Promise<PresetRow[]> {
+export async function listModelConfigs(): Promise<ModelConfigRow[]> {
   return db
     .select()
-    .from(modelPresets)
-    .orderBy(asc(modelPresets.sortOrder), asc(modelPresets.label));
+    .from(modelConfigs)
+    .orderBy(asc(modelConfigs.sortOrder), asc(modelConfigs.label));
 }
 
-export async function getPreset(id: string): Promise<PresetRow | null> {
+export async function getModelConfig(id: string): Promise<ModelConfigRow | null> {
   const [row] = await db
     .select()
-    .from(modelPresets)
-    .where(eq(modelPresets.id, id))
+    .from(modelConfigs)
+    .where(eq(modelConfigs.id, id))
     .limit(1);
   return row ?? null;
 }
 
-export async function createPreset(input: PresetInput): Promise<PresetRow> {
+export async function createModelConfig(input: ModelConfigInput): Promise<ModelConfigRow> {
   const [row] = await db
-    .insert(modelPresets)
+    .insert(modelConfigs)
     .values({
       id: crypto.randomUUID(),
       label: input.label,
@@ -46,12 +46,12 @@ export async function createPreset(input: PresetInput): Promise<PresetRow> {
   return row;
 }
 
-export async function updatePreset(
+export async function updateModelConfig(
   id: string,
-  input: PresetInput,
-): Promise<PresetRow | null> {
+  input: ModelConfigInput,
+): Promise<ModelConfigRow | null> {
   const [row] = await db
-    .update(modelPresets)
+    .update(modelConfigs)
     .set({
       label: input.label,
       baseUrl: input.baseUrl.replace(/\/$/, ""),
@@ -61,11 +61,11 @@ export async function updatePreset(
       sortOrder: input.sortOrder ?? 0,
       updatedAt: new Date(),
     })
-    .where(eq(modelPresets.id, id))
+    .where(eq(modelConfigs.id, id))
     .returning();
   return row ?? null;
 }
 
-export async function deletePreset(id: string): Promise<void> {
-  await db.delete(modelPresets).where(eq(modelPresets.id, id));
+export async function deleteModelConfig(id: string): Promise<void> {
+  await db.delete(modelConfigs).where(eq(modelConfigs.id, id));
 }

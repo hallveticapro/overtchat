@@ -36,7 +36,7 @@ CREATE TABLE `messages` (
 );
 --> statement-breakpoint
 CREATE INDEX `messages_chatId_createdAt_idx` ON `messages` (`chat_id`,`created_at`);--> statement-breakpoint
-CREATE TABLE `model_presets` (
+CREATE TABLE `model_configs` (
 	`id` text PRIMARY KEY NOT NULL,
 	`label` text NOT NULL,
 	`base_url` text NOT NULL,

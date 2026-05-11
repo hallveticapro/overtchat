@@ -20,13 +20,13 @@ import {
   touchChat,
 } from "@/lib/db/chats";
 import { inlineUploads } from "@/lib/db/uploads";
-import { getPreset } from "@/lib/db/presets";
+import { getModelConfig } from "@/lib/db/modelConfigs";
 
 export const maxDuration = 300;
 
 interface Body {
   messages: UIMessage[];
-  presetId: string;
+  modelConfigId: string;
   searchEnabled?: boolean;
   chatId: string;
   trigger?: "submit-message" | "regenerate-message";
@@ -42,19 +42,19 @@ export async function POST(req: Request) {
 
   const {
     messages,
-    presetId,
+    modelConfigId,
     searchEnabled,
     chatId,
     trigger,
     messageId,
   } = (await req.json()) as Body;
 
-  if (!presetId) return new Response("Missing presetId", { status: 400 });
+  if (!modelConfigId) return new Response("Missing modelConfigId", { status: 400 });
   if (!messages.length) return new Response("No messages", { status: 400 });
   if (!chatId) return new Response("Missing chatId", { status: 400 });
 
-  const preset = await getPreset(presetId);
-  if (!preset) return new Response("Preset not found", { status: 404 });
+  const modelConfig = await getModelConfig(modelConfigId);
+  if (!modelConfig) return new Response("Model config not found", { status: 404 });
 
   const chat = await ensureChat(chatId, userId);
   if (!chat) return new Response("Not found", { status: 404 });
@@ -70,18 +70,18 @@ export async function POST(req: Request) {
 
   const provider = createOpenAICompatible({
     name: PROVIDER_NAME,
-    baseURL: preset.baseUrl.replace(/\/$/, ""),
-    apiKey: preset.apiKey || "none",
+    baseURL: modelConfig.baseUrl.replace(/\/$/, ""),
+    apiKey: modelConfig.apiKey || "none",
   });
 
   const wrapped = wrapLanguageModel({
-    model: provider.chatModel(preset.model),
+    model: provider.chatModel(modelConfig.model),
     middleware: extractReasoningMiddleware({ tagName: "think" }),
   });
 
   const inlined = await inlineUploads(messages, userId);
-  const providerOptions = preset.extraBody
-    ? { [PROVIDER_NAME]: preset.extraBody as Record<string, JSONValue> }
+  const providerOptions = modelConfig.extraBody
+    ? { [PROVIDER_NAME]: modelConfig.extraBody as Record<string, JSONValue> }
     : undefined;
 
   const result = streamText({

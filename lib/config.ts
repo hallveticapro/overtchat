@@ -1,15 +1,15 @@
 import { useLocalStorage } from "@/lib/useLocalStorage";
 
-/** Public-facing preset DTO. `apiKey` is intentionally omitted — it never leaves the server. */
-export interface PublicPreset {
+/** Public-facing model config DTO. `apiKey` is intentionally omitted — it never leaves the server. */
+export interface PublicModelConfig {
   id: string;
   label: string;
   model: string;
   hasExtraBody: boolean;
 }
 
-/** Admin-facing preset DTO. Includes `apiKey` + `extraBody` for editing. */
-export interface AdminPreset {
+/** Admin-facing model config DTO. Includes `apiKey` + `extraBody` for editing. */
+export interface AdminModelConfig {
   id: string;
   label: string;
   baseUrl: string;
@@ -19,7 +19,7 @@ export interface AdminPreset {
   sortOrder: number;
 }
 
-export interface PresetInput {
+export interface ModelConfigInput {
   label: string;
   baseUrl: string;
   apiKey?: string | null;
@@ -28,24 +28,24 @@ export interface PresetInput {
   sortOrder?: number;
 }
 
-const SELECTED_PRESET_KEY = "overtchat_selected_preset";
+const SELECTED_MODEL_KEY = "overtchat_selected_model";
 
-export function useSelectedPreset(): [string, (id: string) => void] {
-  return useLocalStorage<string>(SELECTED_PRESET_KEY, "");
+export function useSelectedModel(): [string, (id: string) => void] {
+  return useLocalStorage<string>(SELECTED_MODEL_KEY, "");
 }
 
-export async function fetchPresets(): Promise<PublicPreset[]> {
-  const res = await fetch("/api/presets");
+export async function fetchModelConfigs(): Promise<PublicModelConfig[]> {
+  const res = await fetch("/api/model-configs");
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = (await res.json()) as { presets: PublicPreset[] };
-  return json.presets;
+  const json = (await res.json()) as { modelConfigs: PublicModelConfig[] };
+  return json.modelConfigs;
 }
 
-export async function fetchAdminPresets(): Promise<AdminPreset[]> {
-  const res = await fetch("/api/presets?admin=1");
+export async function fetchAdminModelConfigs(): Promise<AdminModelConfig[]> {
+  const res = await fetch("/api/model-configs?admin=1");
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = (await res.json()) as { presets: AdminPreset[] };
-  return json.presets;
+  const json = (await res.json()) as { modelConfigs: AdminModelConfig[] };
+  return json.modelConfigs;
 }
 
 export async function fetchModelsForEndpoint(

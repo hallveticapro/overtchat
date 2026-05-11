@@ -267,8 +267,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "model_presets": {
-      "name": "model_presets",
+    "model_configs": {
+      "name": "model_configs",
       "columns": {
         "id": {
           "name": "id",
