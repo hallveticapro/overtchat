@@ -26,6 +26,7 @@
 *.pem
 *.log
 *.png
+ROADMAP.md
 
 # debug
 npm-debug.log*

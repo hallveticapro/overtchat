@@ -27,6 +27,11 @@ const mono = Geist_Mono({
 export const metadata: Metadata = {
   title: "overtchat",
   description: "Simple self-hosted chat UI for OpenAI-compatible endpoints",
+  appleWebApp: {
+    title: "overtchat",
+    capable: true,
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {
