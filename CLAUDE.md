@@ -48,7 +48,7 @@ Edit + regenerate both reuse `/api/chat`: the client passes `trigger: "submit-me
 
 ### Uploads (images)
 
-Images are uploaded to `POST /api/uploads` (multipart), written to disk at `./data/uploads/<uuid>`, and a row is inserted into `uploads`. The browser gets back a `/api/uploads/<id>` URL it can render. When the chat route runs, `inlineUploads()` rewrites those URLs into `data:` URIs so upstream providers can fetch the bytes without our auth. Orphaned uploads (not referenced by any message after 24h) are swept by `sweepOrphanedUploads()`, which runs as an import-time side effect in `lib/db/client.ts`.
+Images are uploaded to `POST /api/uploads` (multipart), written to disk at `./data/uploads/<uuid>`, and a row is inserted into `uploads`. The browser gets back a `/api/uploads/<id>` URL it can render. When the chat route runs, `inlineUploads()` rewrites those URLs into `data:` URIs so upstream providers can fetch the bytes without our auth. Orphaned uploads (not referenced by any message after 24h) are swept by `sweepOrphanedUploads()`, kicked off once per server start from `instrumentation.ts`'s `register()` hook.
 
 ### Web search
 
@@ -58,7 +58,7 @@ Images are uploaded to `POST /api/uploads` (multipart), written to disk at `./da
 
 ### Data & auth
 
-- **SQLite via Drizzle**, single connection in `lib/db/client.ts`. `better-sqlite3` with WAL mode + foreign keys on. Migrations in `drizzle/` run at import time — no separate deploy step. DB lives at `./data/chat.db` (gitignored, bind-mounted in production). Override with `DATABASE_URL`.
+- **SQLite via Drizzle**, single connection in `lib/db/client.ts`. `better-sqlite3` with WAL mode + foreign keys on. Migrations in `drizzle/` are applied from `instrumentation.ts`'s `register()` hook, which Next.js calls once per server instance before the server accepts requests. DB lives at `./data/chat.db` (gitignored, bind-mounted in production). Override with `DATABASE_URL`.
 - **Better Auth** in `lib/auth/server.ts`. Email+password only. `admin` plugin provides roles (`admin` + `user`) and user management API. `nextCookies()` plugin must stay last so server actions can set cookies.
 - **First-user-admin bootstrap**: `databaseHooks.user.create.before` is authoritative — it promotes the first user to `admin` and rejects all other unauthenticated creates with `APIError("BAD_REQUEST")`. `/signup` is just a UX shell: the page redirects to `/login` when users exist, and the server action `bootstrapSignUp` re-checks the count before calling `auth.api.signUpEmail`. Additional users come in via `authClient.admin.createUser(...)` from `/settings/users` (admin-only).
 - **Session validation**: `auth.api.getSession({ headers })` works in server components and route handlers. `(app)/layout.tsx` already guards all protected routes. Admin-only pages and routes check `session.user.role === "admin"` and return 403 / redirect on miss — UI-level filtering in `SettingsNav` is UX, not security.
@@ -86,5 +86,5 @@ Images are uploaded to `POST /api/uploads` (multipart), written to disk at `./da
 - **Reasoning extraction is hardcoded to `<think>` tags.** DeepSeek-style models work out of the box; other providers that use different conventions will need middleware changes.
 - **Title generation reuses the chat model.** `maybeGenerateTitle` calls `generateText` with the same `wrapped` model, so `extractReasoningMiddleware` is still active — a model that only emits `<think>…</think>` with no post-tag content will return empty text, and the code falls back to the first 40 chars of the user message.
 - **Tool renaming breaks parts.** If you rename a tool in `lib/tools.ts`, update the `part.type === "tool-<name>"` cases in `ChatArea.tsx` and the discriminators in `ToolCall.tsx`.
-- **`lib/db/client.ts` has an import-time side effect.** It kicks off `sweepOrphanedUploads()` on every boot. The sweep scans `messages.parts` with `LIKE '%<id>%'` per candidate — fine for now, will need to move to an explicit entrypoint if the table grows.
+- **Orphan-upload sweep is a per-candidate `LIKE '%<id>%'` scan over `messages.parts`.** Fine at current scale; revisit if the uploads table grows large.
 - **Server components importing `lib/db/client.ts` pin the route to the Node runtime.** `better-sqlite3` is a native module — don't export `runtime = "edge"` on any route that touches the DB.
