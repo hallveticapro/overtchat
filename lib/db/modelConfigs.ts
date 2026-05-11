@@ -2,17 +2,23 @@ import "server-only";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { modelConfigs } from "@/lib/db/schema";
+import type { AdminModelConfig, ModelConfigInput } from "@/lib/config";
 
+export type { ModelConfigInput };
 export type ModelConfigRow = typeof modelConfigs.$inferSelect;
 
-export type ModelConfigInput = {
-  label: string;
-  baseUrl: string;
-  apiKey?: string | null;
-  model: string;
-  extraBody?: Record<string, unknown> | null;
-  sortOrder?: number;
-};
+export function toAdminModelConfig(row: ModelConfigRow): AdminModelConfig {
+  return {
+    id: row.id,
+    label: row.label,
+    baseUrl: row.baseUrl,
+    apiKey: row.apiKey,
+    model: row.model,
+    systemPrompt: row.systemPrompt,
+    extraBody: row.extraBody,
+    sortOrder: row.sortOrder,
+  };
+}
 
 export async function listModelConfigs(): Promise<ModelConfigRow[]> {
   return db
@@ -39,6 +45,7 @@ export async function createModelConfig(input: ModelConfigInput): Promise<ModelC
       baseUrl: input.baseUrl.replace(/\/$/, ""),
       apiKey: input.apiKey ?? null,
       model: input.model,
+      systemPrompt: input.systemPrompt?.trim() || null,
       extraBody: input.extraBody ?? null,
       sortOrder: input.sortOrder ?? 0,
     })
@@ -57,6 +64,7 @@ export async function updateModelConfig(
       baseUrl: input.baseUrl.replace(/\/$/, ""),
       apiKey: input.apiKey ?? null,
       model: input.model,
+      systemPrompt: input.systemPrompt?.trim() || null,
       extraBody: input.extraBody ?? null,
       sortOrder: input.sortOrder ?? 0,
       updatedAt: new Date(),

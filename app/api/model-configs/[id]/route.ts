@@ -2,23 +2,10 @@ import { auth } from "@/lib/auth/server";
 import {
   deleteModelConfig,
   getModelConfig,
+  toAdminModelConfig,
   updateModelConfig,
   type ModelConfigInput,
-  type ModelConfigRow,
 } from "@/lib/db/modelConfigs";
-import type { AdminModelConfig } from "@/lib/config";
-
-function toAdmin(row: ModelConfigRow): AdminModelConfig {
-  return {
-    id: row.id,
-    label: row.label,
-    baseUrl: row.baseUrl,
-    apiKey: row.apiKey,
-    model: row.model,
-    extraBody: row.extraBody,
-    sortOrder: row.sortOrder,
-  };
-}
 
 async function requireAdmin(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers });
@@ -49,7 +36,7 @@ export async function PATCH(
   }
   const row = await updateModelConfig(id, body);
   if (!row) return new Response("Not found", { status: 404 });
-  return Response.json({ modelConfig: toAdmin(row) });
+  return Response.json({ modelConfig: toAdminModelConfig(row) });
 }
 
 export async function DELETE(

@@ -86,6 +86,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: wrapped,
+    system: modelConfig.systemPrompt ?? undefined,
     messages: await convertToModelMessages(inlined),
     tools: searchEnabled ? webTools : undefined,
     stopWhen: searchEnabled ? stepCountIs(10) : undefined,

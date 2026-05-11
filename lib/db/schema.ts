@@ -198,6 +198,7 @@ export const modelConfigs = sqliteTable("model_configs", {
   baseUrl: text("base_url").notNull(),
   apiKey: text("api_key"),
   model: text("model").notNull(),
+  systemPrompt: text("system_prompt"),
   extraBody: text("extra_body", { mode: "json" }).$type<Record<string, unknown>>(),
   sortOrder: integer("sort_order").default(0).notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" })

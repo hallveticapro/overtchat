@@ -15,6 +15,7 @@ export interface AdminModelConfig {
   baseUrl: string;
   apiKey: string | null;
   model: string;
+  systemPrompt: string | null;
   extraBody: Record<string, unknown> | null;
   sortOrder: number;
 }
@@ -24,6 +25,7 @@ export interface ModelConfigInput {
   baseUrl: string;
   apiKey?: string | null;
   model: string;
+  systemPrompt?: string | null;
   extraBody?: Record<string, unknown> | null;
   sortOrder?: number;
 }

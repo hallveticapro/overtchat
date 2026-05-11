@@ -42,6 +42,7 @@ CREATE TABLE `model_configs` (
 	`base_url` text NOT NULL,
 	`api_key` text,
 	`model` text NOT NULL,
+	`system_prompt` text,
 	`extra_body` text,
 	`sort_order` integer DEFAULT 0 NOT NULL,
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,

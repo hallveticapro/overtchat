@@ -2,10 +2,11 @@ import { auth } from "@/lib/auth/server";
 import {
   createModelConfig,
   listModelConfigs,
+  toAdminModelConfig,
   type ModelConfigInput,
   type ModelConfigRow,
 } from "@/lib/db/modelConfigs";
-import type { AdminModelConfig, PublicModelConfig } from "@/lib/config";
+import type { PublicModelConfig } from "@/lib/config";
 
 function toPublic(row: ModelConfigRow): PublicModelConfig {
   return {
@@ -13,18 +14,6 @@ function toPublic(row: ModelConfigRow): PublicModelConfig {
     label: row.label,
     model: row.model,
     hasExtraBody: !!row.extraBody && Object.keys(row.extraBody).length > 0,
-  };
-}
-
-function toAdmin(row: ModelConfigRow): AdminModelConfig {
-  return {
-    id: row.id,
-    label: row.label,
-    baseUrl: row.baseUrl,
-    apiKey: row.apiKey,
-    model: row.model,
-    extraBody: row.extraBody,
-    sortOrder: row.sortOrder,
   };
 }
 
@@ -40,7 +29,7 @@ export async function GET(req: Request) {
     if (session.user.role !== "admin") {
       return new Response("Forbidden", { status: 403 });
     }
-    return Response.json({ modelConfigs: rows.map(toAdmin) });
+    return Response.json({ modelConfigs: rows.map(toAdminModelConfig) });
   }
   return Response.json({ modelConfigs: rows.map(toPublic) });
 }
@@ -60,5 +49,5 @@ export async function POST(req: Request) {
     );
   }
   const row = await createModelConfig(body);
-  return Response.json({ modelConfig: toAdmin(row) }, { status: 201 });
+  return Response.json({ modelConfig: toAdminModelConfig(row) }, { status: 201 });
 }

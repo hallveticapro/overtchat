@@ -58,6 +58,7 @@ function ModelConfigForm({
           baseUrl: editing.baseUrl,
           apiKey: editing.apiKey ?? "",
           model: editing.model,
+          systemPrompt: editing.systemPrompt ?? "",
           extraBody: editing.extraBody,
           sortOrder: editing.sortOrder,
         }
@@ -66,6 +67,7 @@ function ModelConfigForm({
           baseUrl: "",
           apiKey: "",
           model: "",
+          systemPrompt: "",
           extraBody: null,
           sortOrder: 0,
         },
@@ -273,6 +275,23 @@ function ModelConfigForm({
             />
           )}
           {probeError && <p className="text-xs text-destructive">{probeError}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="p-system-prompt">
+            System prompt{" "}
+            <span className="font-normal text-muted-foreground">
+              — optional, sent with every chat
+            </span>
+          </Label>
+          <textarea
+            id="p-system-prompt"
+            rows={4}
+            placeholder="You are a helpful assistant…"
+            value={draft.systemPrompt ?? ""}
+            onChange={(e) => updateDraft({ systemPrompt: e.target.value })}
+            className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
         </div>
 
         <div className="space-y-1.5">
