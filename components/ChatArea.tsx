@@ -11,6 +11,7 @@ import { cjk } from "@streamdown/cjk";
 import {
   ArrowUp,
   Check,
+  ChevronDown,
   Copy,
   Globe,
   Paperclip,
@@ -236,6 +237,8 @@ export function ChatArea({ chatId, initialMessages, isNew }: Props) {
                 onEdit={handleEdit}
               />
             ))}
+            {status === "submitted" &&
+              messages.at(-1)?.role === "user" && <PendingIndicator />}
           </div>
         )}
       </div>
@@ -428,21 +431,26 @@ function MessageBubble({
       <div className="w-full max-w-full space-y-3 text-sm leading-relaxed">
         {message.parts.map((part, i) => {
           if (part.type === "reasoning") {
+            const isLast = i === message.parts.length - 1;
+            const active = streaming && part.state !== "done" && isLast;
             return (
               <ThinkingBlock
                 key={i}
                 content={part.text}
-                open={streaming && part.state !== "done"}
+                active={active}
               />
             );
           }
           if (part.type === "text") {
+            const isLast = i === message.parts.length - 1;
+            const showCaret = streaming && isLast;
             return (
               <Streamdown
                 key={i}
                 className="font-serif space-y-3 text-[15px] leading-relaxed"
                 plugins={PLUGINS}
                 isAnimating={streaming}
+                caret={showCaret ? "block" : undefined}
               >
                 {part.text}
               </Streamdown>
@@ -636,29 +644,92 @@ function AttachmentChip({
   );
 }
 
-function ThinkingBlock({ content, open }: { content: string; open: boolean }) {
+function ThinkingBlock({
+  content,
+  active,
+}: {
+  content: string;
+  active: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const startedAtRef = useRef<number | null>(null);
+  const settledRef = useRef(false);
+
+  useEffect(() => {
+    if (active) {
+      if (startedAtRef.current == null) startedAtRef.current = Date.now();
+      settledRef.current = false;
+      const tick = () => {
+        if (startedAtRef.current != null) {
+          setDuration(Math.floor((Date.now() - startedAtRef.current) / 1000));
+        }
+      };
+      tick();
+      const id = window.setInterval(tick, 1000);
+      return () => window.clearInterval(id);
+    }
+    if (startedAtRef.current != null && !settledRef.current) {
+      settledRef.current = true;
+      setDuration(
+        Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000)),
+      );
+    }
+  }, [active]);
+
   const trimmed = content.trim();
-  if (!trimmed) return null;
+  if (!trimmed && !active) return null;
+
+  const label = active
+    ? "Thinking…"
+    : duration > 0
+      ? `Thought for ${duration}s`
+      : "Thoughts";
+
   return (
-    <details
-      open={open}
-      className={cn(
-        "group/think rounded-lg border border-dashed border-border/70 bg-muted/30 px-3 py-2",
-      )}
-    >
-      <summary className="cursor-pointer list-none text-xs font-medium text-muted-foreground select-none group-open/think:mb-2">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-1 rounded-full bg-muted-foreground/70" />
-          Thinking
-          <span className="text-muted-foreground/70 group-open/think:hidden">— click to expand</span>
-        </span>
-      </summary>
-      <Streamdown
-        className="space-y-2 text-xs text-muted-foreground [&_p]:my-0 [&_pre]:text-xs [&_code]:text-xs"
-        plugins={PLUGINS}
+    <div className="my-1">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="group/think inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -mx-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+        aria-expanded={open}
       >
-        {trimmed}
-      </Streamdown>
-    </details>
+        <span className={cn(active && "animate-text-shimmer")}>{label}</span>
+        <ChevronDown
+          className={cn(
+            "size-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-200",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+          open ? "grid-rows-[1fr] opacity-100 mt-2" : "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="border-l-2 border-border pl-3 text-xs text-muted-foreground">
+            <Streamdown
+              className="space-y-2 [&_p]:my-0 [&_pre]:text-xs [&_code]:text-xs"
+              plugins={PLUGINS}
+            >
+              {trimmed || " "}
+            </Streamdown>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
+
+function PendingIndicator() {
+  return (
+    <div className="flex items-start">
+      <span className="animate-text-shimmer text-xs font-medium">
+        Thinking…
+      </span>
+    </div>
+  );
+}
+
