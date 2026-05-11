@@ -30,6 +30,7 @@ import {
 } from "@/lib/config";
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { ModelPicker } from "@/components/ModelPicker";
+import { SidebarToggle } from "@/components/SidebarToggle";
 import {
   ToolCall,
   type FetchUrlPart,
@@ -207,7 +208,8 @@ export function ChatArea({ chatId, initialMessages }: Props) {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <header className="flex h-12 shrink-0 items-center border-b px-3">
+      <header className="flex h-12 shrink-0 items-center gap-1 border-b px-3">
+        <SidebarToggle className="md:hidden" />
         <ModelPicker
           presets={presets}
           selectedId={selectedId}
@@ -238,7 +240,7 @@ export function ChatArea({ chatId, initialMessages }: Props) {
         )}
       </div>
 
-      <div className="px-4 pb-6">
+      <div className="px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto max-w-3xl">
           {error && (
             <p className="mb-2 text-sm text-destructive">{error.message}</p>
@@ -478,7 +480,7 @@ function MessageActions({
 }) {
   if (!show) return null;
   return (
-    <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+    <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
       {children}
     </div>
   );
@@ -626,7 +628,7 @@ function AttachmentChip({
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${label}`}
-        className="absolute top-0.5 right-0.5 rounded-full bg-background/80 p-0.5 text-foreground opacity-0 transition-opacity group-hover/chip:opacity-100 hover:bg-background"
+        className="absolute top-0.5 right-0.5 rounded-full bg-background/80 p-0.5 text-foreground opacity-0 transition-opacity group-hover/chip:opacity-100 hover:bg-background [@media(hover:none)]:opacity-100"
       >
         <X className="size-3" />
       </button>

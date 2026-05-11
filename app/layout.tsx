@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -27,6 +27,16 @@ const mono = Geist_Mono({
 export const metadata: Metadata = {
   title: "overtchat",
   description: "Simple self-hosted chat UI for OpenAI-compatible endpoints",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "oklch(0.992 0.004 120)" },
+    { media: "(prefers-color-scheme: dark)", color: "oklch(0.17 0.014 120)" },
+  ],
 };
 
 export default function RootLayout({

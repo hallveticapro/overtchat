@@ -27,12 +27,29 @@ export function SettingsNav() {
   const { data: session } = authClient.useSession();
   const isAdmin = session?.user?.role === "admin";
 
+  const items = isAdmin ? [...USER_ITEMS, ...ADMIN_ITEMS] : USER_ITEMS;
+
   return (
-    <nav className="space-y-5">
-      <Section label="User settings" items={USER_ITEMS} pathname={pathname} />
+    <nav className="-mx-1 flex gap-1 overflow-x-auto md:mx-0 md:flex-col md:gap-0 md:space-y-5 md:overflow-visible">
+      <Section
+        label="User settings"
+        items={USER_ITEMS}
+        pathname={pathname}
+        className="hidden md:block"
+      />
       {isAdmin && (
-        <Section label="Admin settings" items={ADMIN_ITEMS} pathname={pathname} />
+        <Section
+          label="Admin settings"
+          items={ADMIN_ITEMS}
+          pathname={pathname}
+          className="hidden md:block"
+        />
       )}
+      <div className="flex shrink-0 gap-1 md:hidden">
+        {items.map((item) => (
+          <NavLink key={item.href} item={item} pathname={pathname} />
+        ))}
+      </div>
     </nav>
   );
 }
@@ -41,37 +58,42 @@ function Section({
   label,
   items,
   pathname,
+  className,
 }: {
   label: string;
   items: Item[];
   pathname: string;
+  className?: string;
 }) {
   return (
-    <div>
+    <div className={className}>
       <p className="mb-1.5 px-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         {label}
       </p>
       <div className="space-y-1">
-        {items.map((item) => {
-          const active = pathname === item.href;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
-                active
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-              )}
-            >
-              <Icon className="size-3.5 shrink-0" />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+        {items.map((item) => (
+          <NavLink key={item.href} item={item} pathname={pathname} />
+        ))}
       </div>
     </div>
+  );
+}
+
+function NavLink({ item, pathname }: { item: Item; pathname: string }) {
+  const active = pathname === item.href;
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        "flex shrink-0 items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+        active
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+      )}
+    >
+      <Icon className="size-3.5 shrink-0" />
+      <span>{item.label}</span>
+    </Link>
   );
 }

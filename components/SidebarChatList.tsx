@@ -97,7 +97,7 @@ function SidebarItem({ chat }: { chat: Chat }) {
       <Menu.Root>
         <Menu.Trigger
           aria-label="Chat actions"
-          className="mr-0.5 rounded p-1 opacity-0 transition-opacity hover:bg-sidebar-accent group-hover:opacity-100 data-[popup-open]:opacity-100"
+          className="mr-0.5 rounded p-1 opacity-0 transition-opacity hover:bg-sidebar-accent group-hover:opacity-100 data-[popup-open]:opacity-100 [@media(hover:none)]:opacity-100"
         >
           <MoreHorizontal className="size-3.5 text-muted-foreground" />
         </Menu.Trigger>
