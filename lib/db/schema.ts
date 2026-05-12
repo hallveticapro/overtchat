@@ -221,6 +221,15 @@ export const uploads = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     filename: text("filename").notNull(),
     mediaType: text("media_type").notNull(),
+    category: text("category", {
+      enum: ["image", "document", "text", "spreadsheet"],
+    }).notNull(),
+    size: integer("size").notNull(),
+    pageCount: integer("page_count"),
+    extractedText: text("extracted_text"),
+    truncated: integer("truncated", { mode: "boolean" })
+      .default(false)
+      .notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),

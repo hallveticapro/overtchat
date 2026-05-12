@@ -16,6 +16,10 @@ import {
   Check,
   ChevronDown,
   Copy,
+  File as FileIcon,
+  FileCode,
+  FileSpreadsheet,
+  FileText,
   Globe,
   Loader2,
   Paperclip,
@@ -45,6 +49,90 @@ import {
 } from "@/components/ToolCall";
 
 const SEARCH_STORAGE_KEY = "overtchat_search_enabled";
+
+const ATTACH_ACCEPT = [
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/*",
+  ".md",
+  ".csv",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".toml",
+  ".py",
+  ".js",
+  ".ts",
+  ".tsx",
+  ".jsx",
+  ".go",
+  ".rs",
+  ".java",
+  ".c",
+  ".cpp",
+  ".h",
+  ".sh",
+  ".sql",
+].join(",");
+
+type AttachmentCategory = "image" | "document" | "text" | "spreadsheet";
+
+interface AttachmentMeta {
+  category?: AttachmentCategory;
+  size?: number;
+  pageCount?: number | null;
+  truncated?: boolean;
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function renderCategoryIcon(
+  cat: AttachmentCategory | undefined,
+  className: string,
+) {
+  switch (cat) {
+    case "text":
+      return <FileCode className={className} />;
+    case "spreadsheet":
+      return <FileSpreadsheet className={className} />;
+    case "document":
+      return <FileText className={className} />;
+    default:
+      return <FileIcon className={className} />;
+  }
+}
+
+function renderMediaIcon(
+  mediaType: string | undefined,
+  filename: string | undefined,
+  className: string,
+) {
+  if (mediaType === "application/pdf")
+    return <FileText className={className} />;
+  if (mediaType?.includes("wordprocessingml"))
+    return <FileText className={className} />;
+  if (mediaType?.includes("spreadsheetml") || mediaType === "text/csv")
+    return <FileSpreadsheet className={className} />;
+  if (mediaType?.startsWith("text/"))
+    return <FileCode className={className} />;
+  if (
+    filename &&
+    /\.(md|json|yaml|yml|toml|py|js|ts|tsx|jsx|go|rs|java|c|cpp|h|sh|sql)$/i.test(filename)
+  ) {
+    return <FileCode className={className} />;
+  }
+  return <FileIcon className={className} />;
+}
 
 interface Props {
   chatId: string;
@@ -124,6 +212,9 @@ export function ChatArea({ chatId, initialMessages, isNew, projectId }: Props) {
 
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<FileUIPart[]>([]);
+  const [attachmentMeta, setAttachmentMeta] = useState<
+    Record<string, AttachmentMeta>
+  >({});
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -165,6 +256,7 @@ export function ChatArea({ chatId, initialMessages, isNew, projectId }: Props) {
     sendMessage({ text, files: attachments }, { body: requestBody() });
     setInput("");
     setAttachments([]);
+    setAttachmentMeta({});
     setUploadError(null);
   }
 
@@ -174,6 +266,7 @@ export function ChatArea({ chatId, initialMessages, isNew, projectId }: Props) {
     setUploading(true);
     try {
       const uploaded: FileUIPart[] = [];
+      const nextMeta: Record<string, AttachmentMeta> = {};
       for (const file of Array.from(files)) {
         const form = new FormData();
         form.append("file", file);
@@ -182,6 +275,10 @@ export function ChatArea({ chatId, initialMessages, isNew, projectId }: Props) {
           url?: string;
           mediaType?: string;
           filename?: string;
+          category?: AttachmentCategory;
+          size?: number;
+          pageCount?: number | null;
+          truncated?: boolean;
           error?: string;
         };
         if (!res.ok || !json.url || !json.mediaType) {
@@ -193,8 +290,15 @@ export function ChatArea({ chatId, initialMessages, isNew, projectId }: Props) {
           mediaType: json.mediaType,
           filename: json.filename,
         });
+        nextMeta[json.url] = {
+          category: json.category,
+          size: json.size,
+          pageCount: json.pageCount,
+          truncated: json.truncated,
+        };
       }
       setAttachments((prev) => [...prev, ...uploaded]);
+      setAttachmentMeta((prev) => ({ ...prev, ...nextMeta }));
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -283,9 +387,17 @@ export function ChatArea({ chatId, initialMessages, isNew, projectId }: Props) {
                   <AttachmentChip
                     key={`${att.url}-${i}`}
                     attachment={att}
-                    onRemove={() =>
-                      setAttachments((prev) => prev.filter((_, j) => j !== i))
-                    }
+                    meta={attachmentMeta[att.url]}
+                    onRemove={() => {
+                      setAttachments((prev) =>
+                        prev.filter((_, j) => j !== i),
+                      );
+                      setAttachmentMeta((prev) => {
+                        const next = { ...prev };
+                        delete next[att.url];
+                        return next;
+                      });
+                    }}
                   />
                 ))}
               </div>
@@ -305,7 +417,7 @@ export function ChatArea({ chatId, initialMessages, isNew, projectId }: Props) {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  accept={ATTACH_ACCEPT}
                   multiple
                   className="hidden"
                   onChange={(e) => void handleFiles(e.target.files)}
@@ -317,7 +429,7 @@ export function ChatArea({ chatId, initialMessages, isNew, projectId }: Props) {
                   className="rounded-full"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  aria-label="Attach image"
+                  aria-label="Attach file"
                 >
                   <Paperclip />
                 </Button>
@@ -431,7 +543,7 @@ function MessageBubble({
         {files.length > 0 && (
           <div className="flex max-w-[80%] flex-wrap justify-end gap-2">
             {files.map((part, i) => (
-              <MessageImage key={i} part={part} />
+              <MessageAttachment key={i} part={part} />
             ))}
           </div>
         )}
@@ -664,46 +776,105 @@ function EditBubble({
   );
 }
 
-function MessageImage({ part }: { part: FileUIPart }) {
-  const label = part.filename ?? "image";
+function MessageAttachment({ part }: { part: FileUIPart }) {
+  const isImage = part.mediaType?.startsWith("image/") ?? false;
+  const label = part.filename ?? (isImage ? "image" : "file");
+  if (isImage) {
+    return (
+      <a href={part.url} target="_blank" rel="noopener noreferrer">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={part.url}
+          alt={label}
+          className="max-h-64 max-w-full rounded-xl border object-cover"
+        />
+      </a>
+    );
+  }
   return (
-    <a href={part.url} target="_blank" rel="noopener noreferrer">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={part.url}
-        alt={label}
-        className="max-h-64 max-w-full rounded-xl border object-cover"
-      />
-    </a>
+    <div className="flex items-center gap-3 rounded-xl border bg-muted/40 px-3 py-2.5">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground">
+        {renderMediaIcon(part.mediaType, part.filename, "size-4")}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium">{label}</div>
+        <div className="text-xs text-muted-foreground">
+          {humanMediaLabel(part.mediaType)}
+        </div>
+      </div>
+    </div>
   );
 }
 
 function AttachmentChip({
   attachment,
+  meta,
   onRemove,
 }: {
   attachment: FileUIPart;
+  meta: AttachmentMeta | undefined;
   onRemove: () => void;
 }) {
-  const label = attachment.filename ?? "image";
+  const label = attachment.filename ?? "file";
+  const isImage =
+    meta?.category === "image" ||
+    (!meta && attachment.mediaType?.startsWith("image/"));
+  if (isImage) {
+    return (
+      <div className="group/chip relative h-16 w-16 overflow-hidden rounded-lg border bg-muted">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={attachment.url}
+          alt={label}
+          className="size-full object-cover"
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${label}`}
+          className="absolute top-0.5 right-0.5 rounded-full bg-background/80 p-0.5 text-foreground opacity-0 transition-opacity group-hover/chip:opacity-100 hover:bg-background [@media(hover:none)]:opacity-100"
+        >
+          <X className="size-3" />
+        </button>
+      </div>
+    );
+  }
+  const sub = [
+    meta?.pageCount ? `${meta.pageCount} pages` : null,
+    meta?.size != null ? formatSize(meta.size) : null,
+    meta?.truncated ? "truncated" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <div className="group/chip relative h-16 w-16 overflow-hidden rounded-lg border bg-muted">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={attachment.url}
-        alt={label}
-        className="size-full object-cover"
-      />
+    <div className="group/chip relative flex items-center gap-2 rounded-lg border bg-muted/40 py-2 pr-8 pl-2 max-w-[18rem]">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground">
+        {renderCategoryIcon(meta?.category, "size-4")}
+      </div>
+      <div className="min-w-0">
+        <div className="truncate text-xs font-medium">{label}</div>
+        {sub && <div className="truncate text-[11px] text-muted-foreground">{sub}</div>}
+      </div>
       <button
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${label}`}
-        className="absolute top-0.5 right-0.5 rounded-full bg-background/80 p-0.5 text-foreground opacity-0 transition-opacity group-hover/chip:opacity-100 hover:bg-background [@media(hover:none)]:opacity-100"
+        className="absolute top-1 right-1 rounded-full bg-background/80 p-0.5 text-foreground opacity-0 transition-opacity group-hover/chip:opacity-100 hover:bg-background [@media(hover:none)]:opacity-100"
       >
         <X className="size-3" />
       </button>
     </div>
   );
+}
+
+function humanMediaLabel(mediaType: string | undefined): string {
+  if (!mediaType) return "File";
+  if (mediaType === "application/pdf") return "PDF";
+  if (mediaType.includes("wordprocessingml")) return "Word document";
+  if (mediaType.includes("spreadsheetml")) return "Excel spreadsheet";
+  if (mediaType === "text/csv") return "CSV";
+  if (mediaType.startsWith("text/")) return mediaType.replace(/^text\//, "").toUpperCase();
+  return mediaType;
 }
 
 function ThinkingBlock({

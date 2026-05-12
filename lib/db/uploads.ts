@@ -3,9 +3,11 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { and, eq, lt, sql } from "drizzle-orm";
-import type { UIMessage } from "ai";
+import type { UIMessage, UIMessagePart, UIDataTypes, UITools } from "ai";
 import { db } from "@/lib/db/client";
 import { messages, uploads } from "@/lib/db/schema";
+
+type Part = UIMessagePart<UIDataTypes, UITools>;
 
 export type UploadRow = typeof uploads.$inferSelect;
 
@@ -23,6 +25,11 @@ export async function createUpload(row: {
   userId: string;
   filename: string;
   mediaType: string;
+  category: "image" | "document" | "text" | "spreadsheet";
+  size: number;
+  pageCount: number | null;
+  extractedText: string | null;
+  truncated: boolean;
 }): Promise<void> {
   await db.insert(uploads).values(row);
 }
@@ -69,29 +76,68 @@ export async function sweepOrphanedUploads(): Promise<void> {
 }
 
 /**
- * Rewrites `file` parts that reference our uploads route to inline `data:` URLs
- * so upstream providers (OpenAI, Groq, …) can fetch bytes without auth. Foreign
- * URLs pass through untouched. Missing/unauthorized uploads are dropped.
+ * Rewrites `file` parts that reference our uploads route:
+ *   - image uploads → inline `data:` URL so upstream providers can fetch bytes
+ *     without going through our auth
+ *   - document uploads with extracted text → wrapped in Anthropic-style
+ *     <documents>…</documents> XML, prepended before the user's text on the
+ *     same message (Anthropic docs: "queries at the end can improve response
+ *     quality by up to 30%")
+ * Missing/unauthorized uploads are dropped.
  */
 export async function inlineUploads(
-  messages: UIMessage[],
+  uiMessages: UIMessage[],
   userId: string,
 ): Promise<UIMessage[]> {
   return Promise.all(
-    messages.map(async (m) => ({
-      ...m,
-      parts: await Promise.all(
-        m.parts.map(async (part) => {
-          if (part.type !== "file") return part;
-          if (!part.url.startsWith(UPLOAD_URL_PREFIX)) return part;
+    uiMessages.map(async (m) => {
+      const docs: Array<{ source: string; text: string; truncated: boolean }> = [];
+      const rest: Part[] = [];
+
+      for (const part of m.parts) {
+        if (part.type === "file" && part.url.startsWith(UPLOAD_URL_PREFIX)) {
           const id = part.url.slice(UPLOAD_URL_PREFIX.length);
           const row = await getUpload(id, userId);
-          if (!row) return null;
-          const bytes = await fsp.readFile(uploadPath(id));
-          const dataUrl = `data:${row.mediaType};base64,${bytes.toString("base64")}`;
-          return { ...part, url: dataUrl };
-        }),
-      ).then((parts) => parts.filter((p) => p !== null)),
-    })),
+          if (!row) continue;
+          if (row.category === "image") {
+            const bytes = await fsp.readFile(uploadPath(id));
+            const dataUrl = `data:${row.mediaType};base64,${bytes.toString("base64")}`;
+            rest.push({ ...part, url: dataUrl });
+          } else if (row.extractedText) {
+            docs.push({ source: row.filename, text: row.extractedText, truncated: row.truncated });
+          }
+          continue;
+        }
+        rest.push(part);
+      }
+
+      if (docs.length === 0) return { ...m, parts: rest };
+
+      const docsXml = renderDocuments(docs);
+      const textIdx = rest.findIndex((p) => p.type === "text");
+      if (textIdx >= 0) {
+        const t = rest[textIdx] as Extract<Part, { type: "text" }>;
+        rest[textIdx] = { ...t, text: `${docsXml}\n\n${t.text}` };
+      } else {
+        rest.unshift({ type: "text", text: docsXml });
+      }
+      return { ...m, parts: rest };
+    }),
   );
+}
+
+function renderDocuments(
+  docs: Array<{ source: string; text: string; truncated: boolean }>,
+): string {
+  const items = docs
+    .map((d, i) => {
+      const src = d.truncated ? `${d.source} (truncated)` : d.source;
+      return `<document index="${i + 1}">\n<source>${escapeXml(src)}</source>\n<document_content>\n${d.text}\n</document_content>\n</document>`;
+    })
+    .join("\n");
+  return `<documents>\n${items}\n</documents>`;
+}
+
+function escapeXml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
