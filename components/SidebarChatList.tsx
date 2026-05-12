@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { FolderInput, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { groupByDate } from "@/lib/dateGroups";
 import {
   deleteChatAction,
   moveChatToProjectAction,
@@ -17,6 +18,10 @@ interface Chat {
   title: string | null;
 }
 
+interface DatedChat extends Chat {
+  updatedAt: number;
+}
+
 export interface ProjectOption {
   id: string;
   name: string;
@@ -26,22 +31,37 @@ export function SidebarChatList({
   chats,
   projects,
 }: {
-  chats: Chat[];
+  chats: DatedChat[];
   projects: ProjectOption[];
 }) {
   if (chats.length === 0) {
     return (
-      <p className="py-1.5 text-xs text-muted-foreground">
-        No conversations yet
-      </p>
+      <>
+        <div className="mt-4 mb-1 px-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Recents
+        </div>
+        <p className="px-2 py-1 text-xs text-muted-foreground">
+          No conversations yet
+        </p>
+      </>
     );
   }
+  const groups = groupByDate(chats);
   return (
-    <ul className="flex flex-col gap-0.5 py-1">
-      {chats.map((c) => (
-        <SidebarItem key={c.id} chat={c} projects={projects} />
+    <div>
+      {groups.map((g) => (
+        <div key={g.label}>
+          <div className="mt-4 mb-1 px-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            {g.label}
+          </div>
+          <ul className="flex flex-col gap-0.5">
+            {g.items.map((c) => (
+              <SidebarItem key={c.id} chat={c} projects={projects} />
+            ))}
+          </ul>
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
 

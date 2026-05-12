@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Dialog } from "@base-ui/react/dialog";
-import { ChevronRight, FolderPlus, Plus } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,50 +24,23 @@ export function SidebarProjects({
 }: {
   projects: ProjectWithChats[];
 }) {
-  const [creating, setCreating] = useState(false);
-
   const projectOptions: ProjectOption[] = projects.map((p) => ({
     id: p.id,
     name: p.name,
   }));
 
+  if (projects.length === 0) return null;
+
   return (
-    <div className="py-1">
-      <div className="flex items-center justify-between px-2 py-1">
-        <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Projects
-        </span>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          aria-label="New project"
-          className="rounded p-1 text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
-        >
-          <FolderPlus className="size-3.5" />
-        </button>
-      </div>
-
-      {projects.length === 0 ? (
-        <p className="px-2 py-1 text-xs text-muted-foreground">
-          No projects yet
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-0.5">
-          {projects.map((p) => (
-            <ProjectNode
-              key={p.id}
-              project={p}
-              projectOptions={projectOptions}
-            />
-          ))}
-        </ul>
-      )}
-
-      <CreateProjectDialog
-        open={creating}
-        onClose={() => setCreating(false)}
-      />
-    </div>
+    <ul className="flex flex-col gap-0.5">
+      {projects.map((p) => (
+        <ProjectNode
+          key={p.id}
+          project={p}
+          projectOptions={projectOptions}
+        />
+      ))}
+    </ul>
   );
 }
 
@@ -140,7 +113,7 @@ function ProjectNode({
   );
 }
 
-function CreateProjectDialog({
+export function CreateProjectDialog({
   open,
   onClose,
 }: {

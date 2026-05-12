@@ -3,6 +3,7 @@
 import { auth } from "@/lib/auth/server";
 
 export async function bootstrapSignUp(input: {
+  name: string;
   email: string;
   password: string;
 }): Promise<{ error?: string }> {
@@ -11,7 +12,7 @@ export async function bootstrapSignUp(input: {
       body: {
         email: input.email,
         password: input.password,
-        name: input.email,
+        name: input.name,
       },
     });
     return {};

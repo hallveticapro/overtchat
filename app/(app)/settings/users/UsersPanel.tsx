@@ -10,7 +10,7 @@ import { AddUserDialog } from "./AddUserDialog";
 export type UserRow = {
   id: string;
   email: string;
-  name?: string | null;
+  name: string;
   role?: string | null;
   createdAt: string | Date;
   banned?: boolean | null;
@@ -55,6 +55,7 @@ export function UsersPanel({
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/40 text-xs text-muted-foreground uppercase tracking-wide">
             <tr>
+              <th className="px-3 py-2 text-left font-medium">Name</th>
               <th className="px-3 py-2 text-left font-medium">Email</th>
               <th className="px-3 py-2 text-left font-medium">Role</th>
               <th className="px-3 py-2 text-left font-medium">Created</th>
@@ -64,6 +65,7 @@ export function UsersPanel({
           <tbody>
             {initial.map((u) => (
               <tr key={u.id} className="border-b last:border-0">
+                <td className="px-3 py-2">{u.name}</td>
                 <td className="px-3 py-2">{u.email}</td>
                 <td className="px-3 py-2 text-muted-foreground">
                   {u.role ?? "user"}

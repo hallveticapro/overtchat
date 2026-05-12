@@ -11,10 +11,6 @@ export function AccountMenu() {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
 
-  const label = isPending
-    ? "Loading…"
-    : (session?.user?.email ?? "Signed out");
-
   async function logOut() {
     await authClient.signOut();
     router.replace("/login");
@@ -35,8 +31,21 @@ export function AccountMenu() {
         <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
           <User className="size-3.5" />
         </span>
-        <span className="flex-1 truncate text-left text-sm font-medium">
-          {label}
+        <span className="flex min-w-0 flex-1 flex-col text-left">
+          {isPending || !session ? (
+            <span className="text-sm font-medium text-muted-foreground">
+              Loading…
+            </span>
+          ) : (
+            <>
+              <span className="truncate text-sm font-medium leading-tight">
+                {session.user.name}
+              </span>
+              <span className="truncate text-xs leading-tight text-muted-foreground">
+                {session.user.email}
+              </span>
+            </>
+          )}
         </span>
         <ChevronUp className="size-3.5 shrink-0 text-muted-foreground" />
       </Menu.Trigger>

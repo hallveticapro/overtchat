@@ -1,36 +1,86 @@
 "use client";
 
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Dialog } from "@base-ui/react/dialog";
+import { SidebarContext } from "@/components/sidebar-context";
+import { SearchChatsPalette } from "@/components/SearchChatsPalette";
+import { useLocalStorage } from "@/lib/useLocalStorage";
+
+type Chat = { id: string; title: string | null; updatedAt: number };
 
 export function AppShell({
   sidebar,
+  allChats,
   children,
 }: {
   sidebar: React.ReactNode;
+  allChats: Chat[];
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const [openMobile, setOpenMobile] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [collapsed, setCollapsed] = useLocalStorage<boolean>(
+    "overtchat_sidebar_collapsed",
+    false,
+  );
   const pathname = usePathname();
   const [lastPath, setLastPath] = useState(pathname);
   if (pathname !== lastPath) {
     setLastPath(pathname);
-    setOpen(false);
+    setOpenMobile(false);
   }
 
+  const openPalette = useCallback(() => setPaletteOpen(true), []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const key = e.key.toLowerCase();
+      if (key === "k" && !e.shiftKey) {
+        e.preventDefault();
+        setPaletteOpen(true);
+      } else if (key === "o" && e.shiftKey) {
+        e.preventDefault();
+        setOpenMobile(false);
+        router.push("/");
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [router]);
+
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <div className="flex h-dvh overflow-hidden bg-background">
-        <div className="hidden md:flex">{sidebar}</div>
-        <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/40 transition-opacity data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 md:hidden" />
-          <Dialog.Popup className="fixed inset-y-0 left-0 z-50 flex transition-transform duration-200 data-[ending-style]:-translate-x-full data-[starting-style]:-translate-x-full md:hidden">
-            {sidebar}
-          </Dialog.Popup>
-        </Dialog.Portal>
-        <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
-      </div>
-    </Dialog.Root>
+    <SidebarContext.Provider
+      value={{
+        collapsed,
+        setCollapsed,
+        openMobile,
+        setOpenMobile,
+        openPalette,
+      }}
+    >
+      <Dialog.Root open={openMobile} onOpenChange={setOpenMobile}>
+        <div className="flex h-dvh overflow-hidden bg-background">
+          {!collapsed && <div className="hidden md:flex">{sidebar}</div>}
+          <Dialog.Portal>
+            <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/40 transition-opacity data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 md:hidden" />
+            <Dialog.Popup className="fixed inset-y-0 left-0 z-50 flex transition-transform duration-200 data-[ending-style]:-translate-x-full data-[starting-style]:-translate-x-full md:hidden">
+              {sidebar}
+            </Dialog.Popup>
+          </Dialog.Portal>
+          <main className="flex flex-1 flex-col overflow-hidden">
+            {children}
+          </main>
+        </div>
+      </Dialog.Root>
+      <SearchChatsPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        chats={allChats}
+      />
+    </SidebarContext.Provider>
   );
 }

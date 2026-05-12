@@ -1,44 +1,123 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { authClient } from "@/lib/auth/client";
 
-export function AccountForm({ email }: { email: string }) {
+export function AccountForm({
+  email,
+  name: initialName,
+}: {
+  email: string;
+  name: string;
+}) {
+  const router = useRouter();
+  const [name, setName] = useState(initialName);
+  const [profileStatus, setProfileStatus] = useState<
+    "idle" | "submitting" | "ok"
+  >("idle");
+  const [profileError, setProfileError] = useState("");
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [error, setError] = useState("");
-  const [status, setStatus] = useState<"idle" | "submitting" | "ok">("idle");
+  const [pwError, setPwError] = useState("");
+  const [pwStatus, setPwStatus] = useState<"idle" | "submitting" | "ok">(
+    "idle",
+  );
 
-  async function onSubmit(e: React.FormEvent) {
+  async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
-    setStatus("submitting");
-    setError("");
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setProfileError("Name is required");
+      return;
+    }
+    setProfileStatus("submitting");
+    setProfileError("");
+    const { error } = await authClient.updateUser({ name: trimmed });
+    if (error) {
+      setProfileStatus("idle");
+      setProfileError(error.message ?? "Failed to update profile");
+      return;
+    }
+    setProfileStatus("ok");
+    router.refresh();
+  }
+
+  async function changePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwStatus("submitting");
+    setPwError("");
     const { error } = await authClient.changePassword({
       currentPassword,
       newPassword,
       revokeOtherSessions: true,
     });
     if (error) {
-      setStatus("idle");
-      setError(error.message ?? "Failed to change password");
+      setPwStatus("idle");
+      setPwError(error.message ?? "Failed to change password");
       return;
     }
-    setStatus("ok");
+    setPwStatus("ok");
     setCurrentPassword("");
     setNewPassword("");
   }
 
   return (
-    <div className="max-w-xl space-y-8">
+    <div className="max-w-xl space-y-10">
       <header>
-        <h1 className="font-heading text-xl font-semibold tracking-tight">Account</h1>
+        <h1 className="font-heading text-xl font-semibold tracking-tight">
+          Account
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Signed in as <span className="text-foreground">{email}</span>.
         </p>
       </header>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-sm font-medium">Profile</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Shown in the sidebar and on chats.
+          </p>
+        </div>
+
+        <form onSubmit={saveProfile} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              type="text"
+              autoComplete="name"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
+          {profileError && (
+            <p className="text-sm text-destructive">{profileError}</p>
+          )}
+
+          <div className="flex items-center gap-3">
+            <Button
+              type="submit"
+              disabled={
+                profileStatus === "submitting" || name.trim() === initialName
+              }
+            >
+              {profileStatus === "submitting" ? "Saving…" : "Save"}
+            </Button>
+            {profileStatus === "ok" && (
+              <span className="text-sm text-ring">Saved</span>
+            )}
+          </div>
+        </form>
+      </section>
 
       <section className="space-y-4">
         <div>
@@ -48,7 +127,7 @@ export function AccountForm({ email }: { email: string }) {
           </p>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={changePassword} className="space-y-4">
           {/* Hidden username anchor so password managers associate this
               credential with the signed-in account. */}
           <input
@@ -61,9 +140,8 @@ export function AccountForm({ email }: { email: string }) {
           />
           <div className="space-y-1.5">
             <Label htmlFor="current">Current password</Label>
-            <Input
+            <PasswordInput
               id="current"
-              type="password"
               autoComplete="current-password"
               required
               value={currentPassword}
@@ -72,9 +150,8 @@ export function AccountForm({ email }: { email: string }) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="new">New password</Label>
-            <Input
+            <PasswordInput
               id="new"
-              type="password"
               autoComplete="new-password"
               required
               minLength={8}
@@ -83,13 +160,13 @@ export function AccountForm({ email }: { email: string }) {
             />
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {pwError && <p className="text-sm text-destructive">{pwError}</p>}
 
           <div className="flex items-center gap-3">
-            <Button type="submit" disabled={status === "submitting"}>
-              {status === "submitting" ? "Saving…" : "Change password"}
+            <Button type="submit" disabled={pwStatus === "submitting"}>
+              {pwStatus === "submitting" ? "Saving…" : "Change password"}
             </Button>
-            {status === "ok" && (
+            {pwStatus === "ok" && (
               <span className="text-sm text-ring">Password updated</span>
             )}
           </div>

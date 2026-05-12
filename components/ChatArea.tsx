@@ -234,7 +234,7 @@ export function ChatArea({ chatId, initialMessages, isNew, projectId }: Props) {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <header className="flex h-12 shrink-0 items-center gap-1 border-b px-3">
-        <SidebarToggle className="md:hidden" />
+        <SidebarToggle />
         <ModelPicker
           models={models}
           selectedId={selectedId}

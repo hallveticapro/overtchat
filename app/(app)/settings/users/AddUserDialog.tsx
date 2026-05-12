@@ -18,6 +18,7 @@ export function AddUserDialog({
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
 }) {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("user");
@@ -25,6 +26,7 @@ export function AddUserDialog({
   const [submitting, setSubmitting] = useState(false);
 
   function reset() {
+    setName("");
     setEmail("");
     setPassword("");
     setRole("user");
@@ -39,7 +41,7 @@ export function AddUserDialog({
     const { error } = await authClient.admin.createUser({
       email,
       password,
-      name: email,
+      name: name.trim(),
       role,
     });
     if (error) {
@@ -71,6 +73,16 @@ export function AddUserDialog({
           </Dialog.Description>
 
           <form onSubmit={onSubmit} className="mt-5 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-name">Name</Label>
+              <Input
+                id="new-name"
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="new-email">Email</Label>
               <Input
