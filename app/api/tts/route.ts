@@ -24,6 +24,7 @@ export async function POST(req: Request) {
       voice: body?.voice ?? "af_heart",
       input: text,
       response_format: "mp3",
+      stream: true,
     }),
     signal: req.signal,
   }).catch(() => null);
