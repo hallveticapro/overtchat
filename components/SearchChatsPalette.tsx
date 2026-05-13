@@ -23,6 +23,22 @@ type Row =
   | { kind: "chat"; chat: Chat }
   | { kind: "hit"; hit: Hit };
 
+function renderSnippet(snippet: string) {
+  let highlighted = false;
+  return snippet.split(/(<\/?mark>)/g).map((part, i) => {
+    if (part === "<mark>") {
+      highlighted = true;
+      return null;
+    }
+    if (part === "</mark>") {
+      highlighted = false;
+      return null;
+    }
+    if (!part) return null;
+    return highlighted ? <mark key={i}>{part}</mark> : part;
+  });
+}
+
 export function SearchChatsPalette({
   open,
   onOpenChange,
@@ -248,10 +264,9 @@ export function SearchChatsPalette({
                     {row.hit.title ?? "Untitled"}
                   </span>
                   {row.hit.snippet && (
-                    <span
-                      className="line-clamp-2 text-xs text-muted-foreground [&_mark]:bg-transparent [&_mark]:font-medium [&_mark]:text-foreground"
-                      dangerouslySetInnerHTML={{ __html: row.hit.snippet }}
-                    />
+                    <span className="line-clamp-2 text-xs text-muted-foreground [&_mark]:bg-transparent [&_mark]:font-medium [&_mark]:text-foreground">
+                      {renderSnippet(row.hit.snippet)}
+                    </span>
                   )}
                 </button>
               );
