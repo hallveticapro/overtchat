@@ -4,7 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Menu } from "@base-ui/react/menu";
-import { FolderInput, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+  Download,
+  FolderInput,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { groupByDate } from "@/lib/dateGroups";
 import {
@@ -205,6 +211,13 @@ export function SidebarItem({
                   </Menu.Positioner>
                 </Menu.Portal>
               </Menu.SubmenuRoot>
+              <Menu.Item
+                render={<a href={`/api/chat/${chat.id}/export`} download />}
+                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
+              >
+                <Download className="size-3.5 shrink-0 text-muted-foreground" />
+                <span>Export</span>
+              </Menu.Item>
               <Menu.Item
                 onClick={confirmDelete}
                 className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-destructive outline-none data-[highlighted]:bg-accent"
