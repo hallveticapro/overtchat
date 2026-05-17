@@ -12,6 +12,11 @@ import {
   type AdminModelConfig,
   type ModelConfigInput,
 } from "@/lib/config";
+import {
+  PROVIDERS,
+  PROVIDER_IDS,
+  type ProviderId,
+} from "@/lib/providers/meta";
 
 type Mode = AdminModelConfig | "new" | null;
 
@@ -60,6 +65,7 @@ function ModelConfigForm({
     editing
       ? {
           label: editing.label,
+          provider: editing.provider,
           baseUrl: editing.baseUrl,
           apiKey: editing.apiKey ?? "",
           model: editing.model,
@@ -69,6 +75,7 @@ function ModelConfigForm({
         }
       : {
           label: "",
+          provider: "openai-compatible",
           baseUrl: "",
           apiKey: "",
           model: "",
@@ -77,6 +84,11 @@ function ModelConfigForm({
           sortOrder: 0,
         },
   );
+  const providerMeta = PROVIDERS[draft.provider];
+  const requiresKey = providerMeta.requiresApiKey;
+  // Show the endpoint field only for providers without a fixed base URL.
+  const showBaseUrlField = providerMeta.defaultBaseUrl === "";
+
   const [extraBodyText, setExtraBodyText] = useState(() =>
     editing?.extraBody ? JSON.stringify(editing.extraBody, null, 2) : "",
   );
@@ -92,12 +104,16 @@ function ModelConfigForm({
   );
 
   const probeModels = useCallback(
-    async (baseUrl: string, apiKey: string | null | undefined) => {
+    async (
+      provider: ProviderId,
+      baseUrl: string,
+      apiKey: string | null | undefined,
+    ) => {
       if (!baseUrl) return;
       setProbingModels(true);
       setProbeError("");
       try {
-        const ids = await fetchModelsForEndpoint(baseUrl, apiKey);
+        const ids = await fetchModelsForEndpoint(provider, baseUrl, apiKey);
         setModels(ids);
         if (ids.length > 0) {
           setDraft((d) => ({
@@ -115,13 +131,19 @@ function ModelConfigForm({
   );
 
   // Auto-probe when creating a new config and the endpoint/key changes.
+  // Providers with requiresApiKey wait for the key (Anthropic/Google);
+  // openai-compatible allows anonymous (e.g. local Ollama).
   const isCreating = editing === null;
-  const { baseUrl, apiKey } = draft;
+  const { provider, baseUrl, apiKey } = draft;
   useEffect(() => {
     if (!isCreating || !baseUrl) return;
-    const t = setTimeout(() => void probeModels(baseUrl, apiKey), 500);
+    if (PROVIDERS[provider].requiresApiKey && !apiKey) return;
+    const t = setTimeout(
+      () => void probeModels(provider, baseUrl, apiKey),
+      500,
+    );
     return () => clearTimeout(t);
-  }, [isCreating, baseUrl, apiKey, probeModels]);
+  }, [isCreating, provider, baseUrl, apiKey, probeModels]);
 
   function parseExtraBody(): { ok: true; value: Record<string, unknown> | null } | { ok: false; error: string } {
     const trimmed = extraBodyText.trim();
@@ -150,6 +172,7 @@ function ModelConfigForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          provider: draft.provider,
           baseUrl: draft.baseUrl,
           apiKey: draft.apiKey,
           model: draft.model,
@@ -217,32 +240,69 @@ function ModelConfigForm({
       >
         <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
           <div className="space-y-1.5">
-            <Label htmlFor="p-base-url">Endpoint</Label>
-            <Input
-              id="p-base-url"
-              placeholder="https://api.openai.com/v1"
-              required
-              autoFocus={!editing}
-              value={draft.baseUrl}
+            <Label htmlFor="p-provider">Provider</Label>
+            <select
+              id="p-provider"
+              value={draft.provider}
+              disabled={Boolean(editing)}
               onChange={(e) => {
-                const baseUrl = e.target.value;
-                setDraft((d) => ({ ...d, baseUrl }));
+                const next = e.target.value as ProviderId;
+                setDraft((d) => ({
+                  ...d,
+                  provider: next,
+                  baseUrl: PROVIDERS[next].defaultBaseUrl,
+                  model: "",
+                }));
                 setModels([]);
                 setProbeError("");
                 setPingResult(null);
               }}
-            />
+              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-input/30"
+            >
+              {PROVIDER_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {PROVIDERS[id].label}
+                </option>
+              ))}
+            </select>
+            {editing && (
+              <p className="text-xs text-muted-foreground">
+                Provider can&apos;t be changed after creation.
+              </p>
+            )}
           </div>
+
+          {showBaseUrlField && (
+            <div className="space-y-1.5">
+              <Label htmlFor="p-base-url">Endpoint</Label>
+              <Input
+                id="p-base-url"
+                placeholder="https://api.openai.com/v1"
+                required
+                autoFocus={!editing}
+                value={draft.baseUrl}
+                onChange={(e) => {
+                  const baseUrl = e.target.value;
+                  setDraft((d) => ({ ...d, baseUrl }));
+                  setModels([]);
+                  setProbeError("");
+                  setPingResult(null);
+                }}
+              />
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="p-api-key">
-              API key <OptionalChip />
+              API key {requiresKey ? null : <OptionalChip />}
             </Label>
             <Input
               id="p-api-key"
               type="password"
               autoComplete="new-password"
-              placeholder="sk-…"
+              placeholder={requiresKey ? "Required" : "sk-…"}
+              required={requiresKey}
+              autoFocus={!editing && requiresKey}
               value={draft.apiKey ?? ""}
               onChange={(e) => {
                 const apiKey = e.target.value;
@@ -265,11 +325,15 @@ function ModelConfigForm({
                 ) : probeError ? (
                   <button
                     type="button"
-                    onClick={() => probeModels(draft.baseUrl, draft.apiKey)}
+                    onClick={() =>
+                      probeModels(draft.provider, draft.baseUrl, draft.apiKey)
+                    }
                     className="underline-offset-2 hover:underline"
                   >
                     Retry fetch
                   </button>
+                ) : requiresKey && !draft.apiKey ? (
+                  "Add API key to load models"
                 ) : null}
               </span>
             </div>
@@ -292,7 +356,7 @@ function ModelConfigForm({
             ) : (
               <Input
                 id="p-model"
-                placeholder="gpt-4o-mini"
+                placeholder={providerMeta.modelPlaceholder}
                 required
                 value={draft.model}
                 onChange={(e) => {
@@ -301,14 +365,21 @@ function ModelConfigForm({
                 }}
               />
             )}
-            {probeError && <p className="text-xs text-destructive">{probeError}</p>}
+            {probeError && (
+              <p className="text-xs text-destructive">{probeError}</p>
+            )}
 
             <div className="pt-1">
               <Button
                 type="button"
                 variant="outline"
                 size="xs"
-                disabled={!draft.baseUrl || !draft.model || pinging}
+                disabled={
+                  !draft.baseUrl ||
+                  !draft.model ||
+                  pinging ||
+                  (requiresKey && !draft.apiKey)
+                }
                 onClick={ping}
               >
                 {pinging ? (
@@ -423,7 +494,16 @@ function ModelConfigForm({
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" size="sm" disabled={saving || !draft.baseUrl || !draft.model}>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={
+              saving ||
+              !draft.baseUrl ||
+              !draft.model ||
+              (requiresKey && !draft.apiKey)
+            }
+          >
             {saving ? "Saving…" : editing ? "Save" : "Create"}
           </Button>
         </div>
