@@ -7,6 +7,7 @@ export type { ProviderId };
 export interface PublicModelConfig {
   id: string;
   label: string;
+  provider: ProviderId;
   model: string;
   hasExtraBody: boolean;
 }

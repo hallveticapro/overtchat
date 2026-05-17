@@ -5,6 +5,7 @@ import { Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PublicModelConfig } from "@/lib/config";
+import { PROVIDERS, PROVIDER_IDS, type ProviderId } from "@/lib/providers/meta";
 
 interface Props {
   models: PublicModelConfig[] | null;
@@ -23,6 +24,8 @@ export function ModelPicker({ models, selectedId, onSelect }: Props) {
       : models && models.length > 0
         ? "Select a model"
         : "No models";
+
+  const grouped = groupByProvider(models ?? []);
 
   return (
     <Menu.Root>
@@ -44,25 +47,56 @@ export function ModelPicker({ models, selectedId, onSelect }: Props) {
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="start" sideOffset={6}>
-          <Menu.Popup className="z-50 max-h-80 w-64 overflow-y-auto rounded-lg border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
-            {models?.map((m) => (
-              <Menu.Item
-                key={m.id}
-                onClick={() => onSelect(m.id)}
-                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
-              >
-                <Check
-                  className={cn(
-                    "size-3.5 shrink-0",
-                    m.id === selectedId ? "opacity-100" : "opacity-0",
-                  )}
-                />
-                <span className="truncate">{m.label}</span>
-              </Menu.Item>
-            ))}
+          <Menu.Popup className="z-50 max-h-80 w-72 overflow-y-auto rounded-lg border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+            {PROVIDER_IDS.map((providerId) => {
+              const items = grouped[providerId];
+              if (!items || items.length === 0) return null;
+              return (
+                <Menu.Group
+                  key={providerId}
+                  className="py-1 first:pt-0 last:pb-0 not-first:border-t not-first:mt-1 not-first:pt-2"
+                >
+                  <Menu.GroupLabel className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {PROVIDERS[providerId].label}
+                  </Menu.GroupLabel>
+                  {items.map((m) => (
+                    <Menu.Item
+                      key={m.id}
+                      onClick={() => onSelect(m.id)}
+                      className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
+                    >
+                      <Check
+                        className={cn(
+                          "mt-0.5 size-3.5 shrink-0",
+                          m.id === selectedId ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate">{m.label}</span>
+                        {m.label !== m.model && (
+                          <span className="truncate text-xs text-muted-foreground">
+                            {m.model}
+                          </span>
+                        )}
+                      </span>
+                    </Menu.Item>
+                  ))}
+                </Menu.Group>
+              );
+            })}
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
     </Menu.Root>
   );
+}
+
+function groupByProvider(
+  models: PublicModelConfig[],
+): Partial<Record<ProviderId, PublicModelConfig[]>> {
+  const out: Partial<Record<ProviderId, PublicModelConfig[]>> = {};
+  for (const m of models) {
+    (out[m.provider] ??= []).push(m);
+  }
+  return out;
 }
