@@ -7,13 +7,13 @@ import {
   type ModelConfigRow,
 } from "@/lib/db/modelConfigs";
 import type { PublicModelConfig } from "@/lib/config";
-import type { ProviderId } from "@/lib/providers/meta";
+import { PRESETS, presetFor, type ProviderId } from "@/lib/providers/meta";
 
 function toPublic(row: ModelConfigRow): PublicModelConfig {
   return {
     id: row.id,
     label: row.label,
-    provider: row.provider as ProviderId,
+    displayProvider: PRESETS[presetFor(row.provider as ProviderId, row.baseUrl)].label,
     model: row.model,
     hasExtraBody: !!row.extraBody && Object.keys(row.extraBody).length > 0,
   };

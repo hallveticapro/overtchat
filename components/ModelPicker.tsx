@@ -5,13 +5,15 @@ import { Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PublicModelConfig } from "@/lib/config";
-import { PROVIDERS, PROVIDER_IDS, type ProviderId } from "@/lib/providers/meta";
+import { PRESETS, PRESET_IDS } from "@/lib/providers/meta";
 
 interface Props {
   models: PublicModelConfig[] | null;
   selectedId: string;
   onSelect: (id: string) => void;
 }
+
+const GROUP_ORDER = PRESET_IDS.map((id) => PRESETS[id].label);
 
 export function ModelPicker({ models, selectedId, onSelect }: Props) {
   const loading = models === null;
@@ -25,7 +27,7 @@ export function ModelPicker({ models, selectedId, onSelect }: Props) {
         ? "Select a model"
         : "No models";
 
-  const grouped = groupByProvider(models ?? []);
+  const groups = groupModels(models ?? []);
 
   return (
     <Menu.Root>
@@ -48,42 +50,38 @@ export function ModelPicker({ models, selectedId, onSelect }: Props) {
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="start" sideOffset={6}>
           <Menu.Popup className="z-50 max-h-80 w-72 overflow-y-auto rounded-lg border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
-            {PROVIDER_IDS.map((providerId) => {
-              const items = grouped[providerId];
-              if (!items || items.length === 0) return null;
-              return (
-                <Menu.Group
-                  key={providerId}
-                  className="py-1 first:pt-0 last:pb-0 not-first:border-t not-first:mt-1 not-first:pt-2"
-                >
-                  <Menu.GroupLabel className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    {PROVIDERS[providerId].label}
-                  </Menu.GroupLabel>
-                  {items.map((m) => (
-                    <Menu.Item
-                      key={m.id}
-                      onClick={() => onSelect(m.id)}
-                      className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
-                    >
-                      <Check
-                        className={cn(
-                          "mt-0.5 size-3.5 shrink-0",
-                          m.id === selectedId ? "opacity-100" : "opacity-0",
-                        )}
-                      />
-                      <span className="flex min-w-0 flex-col">
-                        <span className="truncate">{m.label}</span>
-                        {m.label !== m.model && (
-                          <span className="truncate text-xs text-muted-foreground">
-                            {m.model}
-                          </span>
-                        )}
-                      </span>
-                    </Menu.Item>
-                  ))}
-                </Menu.Group>
-              );
-            })}
+            {groups.map(([groupLabel, items]) => (
+              <Menu.Group
+                key={groupLabel}
+                className="py-1 first:pt-0 last:pb-0 not-first:border-t not-first:mt-1 not-first:pt-2"
+              >
+                <Menu.GroupLabel className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {groupLabel}
+                </Menu.GroupLabel>
+                {items.map((m) => (
+                  <Menu.Item
+                    key={m.id}
+                    onClick={() => onSelect(m.id)}
+                    className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
+                  >
+                    <Check
+                      className={cn(
+                        "mt-0.5 size-3.5 shrink-0",
+                        m.id === selectedId ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate">{m.label}</span>
+                      {m.label !== m.model && (
+                        <span className="truncate text-xs text-muted-foreground">
+                          {m.model}
+                        </span>
+                      )}
+                    </span>
+                  </Menu.Item>
+                ))}
+              </Menu.Group>
+            ))}
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
@@ -91,12 +89,21 @@ export function ModelPicker({ models, selectedId, onSelect }: Props) {
   );
 }
 
-function groupByProvider(
+function groupModels(
   models: PublicModelConfig[],
-): Partial<Record<ProviderId, PublicModelConfig[]>> {
-  const out: Partial<Record<ProviderId, PublicModelConfig[]>> = {};
+): Array<[string, PublicModelConfig[]]> {
+  const buckets = new Map<string, PublicModelConfig[]>();
   for (const m of models) {
-    (out[m.provider] ??= []).push(m);
+    const arr = buckets.get(m.displayProvider) ?? [];
+    arr.push(m);
+    buckets.set(m.displayProvider, arr);
   }
-  return out;
+  return [...buckets.entries()].sort(([a], [b]) => {
+    const ai = GROUP_ORDER.indexOf(a);
+    const bi = GROUP_ORDER.indexOf(b);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.localeCompare(b);
+  });
 }

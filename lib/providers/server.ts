@@ -10,7 +10,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { ProviderId } from "./meta";
 
-const OPENAI_COMPAT_PROVIDER_NAME = "user-endpoint";
+const OPENAI_COMPAT_PROVIDER_NAME = "openai-compatible";
 
 export interface BuildArgs {
   baseUrl: string;

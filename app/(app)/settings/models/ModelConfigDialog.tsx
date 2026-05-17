@@ -6,6 +6,13 @@ import { CheckCircle2, ChevronDown, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   fetchModelsForEndpoint,
@@ -13,8 +20,10 @@ import {
   type ModelConfigInput,
 } from "@/lib/config";
 import {
-  PROVIDERS,
-  PROVIDER_IDS,
+  PRESETS,
+  PRESET_IDS,
+  presetFor,
+  type PresetId,
   type ProviderId,
 } from "@/lib/providers/meta";
 
@@ -61,33 +70,36 @@ function ModelConfigForm({
   onClose: () => void;
   onSave: (input: ModelConfigInput, id?: string) => Promise<void>;
 }) {
-  const [draft, setDraft] = useState<ModelConfigInput>(() =>
-    editing
-      ? {
-          label: editing.label,
-          provider: editing.provider,
-          baseUrl: editing.baseUrl,
-          apiKey: editing.apiKey ?? "",
-          model: editing.model,
-          systemPrompt: editing.systemPrompt ?? "",
-          extraBody: editing.extraBody,
-          sortOrder: editing.sortOrder,
-        }
-      : {
-          label: "",
-          provider: "openai-compatible",
-          baseUrl: "",
-          apiKey: "",
-          model: "",
-          systemPrompt: "",
-          extraBody: null,
-          sortOrder: 0,
-        },
+  const [preset, setPreset] = useState<PresetId>(() =>
+    editing ? presetFor(editing.provider, editing.baseUrl) : "openai",
   );
-  const providerMeta = PROVIDERS[draft.provider];
-  const requiresKey = providerMeta.requiresApiKey;
-  // Show the endpoint field only for providers without a fixed base URL.
-  const showBaseUrlField = providerMeta.defaultBaseUrl === "";
+  const [draft, setDraft] = useState<ModelConfigInput>(() => {
+    if (editing) {
+      return {
+        label: editing.label,
+        provider: editing.provider,
+        baseUrl: editing.baseUrl,
+        apiKey: editing.apiKey ?? "",
+        model: editing.model,
+        systemPrompt: editing.systemPrompt ?? "",
+        extraBody: editing.extraBody,
+        sortOrder: editing.sortOrder,
+      };
+    }
+    const initial = PRESETS.openai;
+    return {
+      label: "",
+      provider: initial.provider,
+      baseUrl: initial.defaultBaseUrl,
+      apiKey: "",
+      model: "",
+      systemPrompt: "",
+      extraBody: null,
+      sortOrder: 0,
+    };
+  });
+  const presetMeta = PRESETS[preset];
+  const requiresKey = presetMeta.requiresApiKey;
 
   const [extraBodyText, setExtraBodyText] = useState(() =>
     editing?.extraBody ? JSON.stringify(editing.extraBody, null, 2) : "",
@@ -131,19 +143,19 @@ function ModelConfigForm({
   );
 
   // Auto-probe when creating a new config and the endpoint/key changes.
-  // Providers with requiresApiKey wait for the key (Anthropic/Google);
-  // openai-compatible allows anonymous (e.g. local Ollama).
+  // Presets with requiresApiKey wait for the key; Custom (anonymous-ok)
+  // probes as soon as a base URL is present (e.g. local Ollama).
   const isCreating = editing === null;
   const { provider, baseUrl, apiKey } = draft;
   useEffect(() => {
     if (!isCreating || !baseUrl) return;
-    if (PROVIDERS[provider].requiresApiKey && !apiKey) return;
+    if (requiresKey && !apiKey) return;
     const t = setTimeout(
       () => void probeModels(provider, baseUrl, apiKey),
       500,
     );
     return () => clearTimeout(t);
-  }, [isCreating, provider, baseUrl, apiKey, probeModels]);
+  }, [isCreating, provider, baseUrl, apiKey, requiresKey, probeModels]);
 
   function parseExtraBody(): { ok: true; value: Record<string, unknown> | null } | { ok: false; error: string } {
     const trimmed = extraBodyText.trim();
@@ -240,31 +252,36 @@ function ModelConfigForm({
       >
         <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
           <div className="space-y-1.5">
-            <Label htmlFor="p-provider">Provider</Label>
-            <select
-              id="p-provider"
-              value={draft.provider}
+            <Label htmlFor="p-preset">Provider</Label>
+            <Select
+              value={preset}
               disabled={Boolean(editing)}
-              onChange={(e) => {
-                const next = e.target.value as ProviderId;
+              onValueChange={(next) => {
+                if (!next) return;
+                const meta = PRESETS[next];
+                setPreset(next);
                 setDraft((d) => ({
                   ...d,
-                  provider: next,
-                  baseUrl: PROVIDERS[next].defaultBaseUrl,
+                  provider: meta.provider,
+                  baseUrl: meta.defaultBaseUrl,
                   model: "",
                 }));
                 setModels([]);
                 setProbeError("");
                 setPingResult(null);
               }}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-input/30"
             >
-              {PROVIDER_IDS.map((id) => (
-                <option key={id} value={id}>
-                  {PROVIDERS[id].label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="p-preset" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRESET_IDS.map((id) => (
+                  <SelectItem key={id} value={id}>
+                    {PRESETS[id].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {editing && (
               <p className="text-xs text-muted-foreground">
                 Provider can&apos;t be changed after creation.
@@ -272,25 +289,23 @@ function ModelConfigForm({
             )}
           </div>
 
-          {showBaseUrlField && (
-            <div className="space-y-1.5">
-              <Label htmlFor="p-base-url">Endpoint</Label>
-              <Input
-                id="p-base-url"
-                placeholder="https://api.openai.com/v1"
-                required
-                autoFocus={!editing}
-                value={draft.baseUrl}
-                onChange={(e) => {
-                  const baseUrl = e.target.value;
-                  setDraft((d) => ({ ...d, baseUrl }));
-                  setModels([]);
-                  setProbeError("");
-                  setPingResult(null);
-                }}
-              />
-            </div>
-          )}
+          <div className="space-y-1.5">
+            <Label htmlFor="p-base-url">Endpoint</Label>
+            <Input
+              id="p-base-url"
+              placeholder="https://api.openai.com/v1"
+              required
+              autoFocus={!editing && preset === "custom"}
+              value={draft.baseUrl}
+              onChange={(e) => {
+                const baseUrl = e.target.value;
+                setDraft((d) => ({ ...d, baseUrl }));
+                setModels([]);
+                setProbeError("");
+                setPingResult(null);
+              }}
+            />
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="p-api-key">
@@ -338,25 +353,29 @@ function ModelConfigForm({
               </span>
             </div>
             {models.length > 0 ? (
-              <select
-                id="p-model"
+              <Select
                 value={draft.model}
-                onChange={(e) => {
-                  setDraft((d) => ({ ...d, model: e.target.value }));
+                onValueChange={(value) => {
+                  if (value == null) return;
+                  setDraft((d) => ({ ...d, model: value }));
                   setPingResult(null);
                 }}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
               >
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="p-model" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ) : (
               <Input
                 id="p-model"
-                placeholder={providerMeta.modelPlaceholder}
+                placeholder={presetMeta.modelPlaceholder}
                 required
                 value={draft.model}
                 onChange={(e) => {

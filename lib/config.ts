@@ -7,7 +7,8 @@ export type { ProviderId };
 export interface PublicModelConfig {
   id: string;
   label: string;
-  provider: ProviderId;
+  /** Display label for the underlying provider, e.g. "OpenAI", "Anthropic", "Custom". */
+  displayProvider: string;
   model: string;
   hasExtraBody: boolean;
 }
