@@ -4,6 +4,8 @@ import { corsHeaders, preflight, withCors } from "@/lib/cors";
 import { getActiveStreamId, getChat, setActiveStreamId } from "@/lib/db/chats";
 import { getStreamContext } from "@/lib/streams/context";
 
+// Keep this literal for Next route segment analysis. Docker startup can
+// override the packaged function metadata with CHAT_MAX_DURATION_SECONDS.
 export const maxDuration = 300;
 
 export function OPTIONS(req: Request) {
