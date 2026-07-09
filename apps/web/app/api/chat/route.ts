@@ -23,6 +23,8 @@ import { buildRuntimeContext } from "@/lib/runtime-context";
 import * as cancelRegistry from "@/lib/streams/cancel-registry";
 import { getStreamContext } from "@/lib/streams/context";
 
+// Keep this literal for Next route segment analysis. Docker startup can
+// override the packaged function metadata with CHAT_MAX_DURATION_SECONDS.
 export const maxDuration = 300;
 
 interface MessageStats {

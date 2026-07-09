@@ -29,6 +29,9 @@ compose.override.yaml
 .claude
 .DS_Store
 apps/web/scripts
+!apps/web/scripts/
+!apps/web/scripts/chat-max-duration.cjs
+!apps/web/scripts/docker-entrypoint.sh
 **/tsconfig.tsbuildinfo
 docs
 searxng

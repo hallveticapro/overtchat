@@ -29,11 +29,14 @@ RUN groupadd --system --gid 1001 nodejs \
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/drizzle ./apps/web/drizzle
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/scripts/chat-max-duration.cjs ./apps/web/scripts/chat-max-duration.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/scripts/docker-entrypoint.sh ./apps/web/scripts/docker-entrypoint.sh
 
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
 
 USER nextjs
-ENV HOSTNAME=0.0.0.0 PORT=4717 DATABASE_URL=/app/data/chat.db MIGRATIONS_FOLDER=/app/apps/web/drizzle
+ENV HOSTNAME=0.0.0.0 PORT=4717 DATABASE_URL=/app/data/chat.db MIGRATIONS_FOLDER=/app/apps/web/drizzle CHAT_MAX_DURATION_SECONDS=300
 EXPOSE 4717
 
+ENTRYPOINT ["sh", "apps/web/scripts/docker-entrypoint.sh"]
 CMD ["node", "apps/web/server.js"]
